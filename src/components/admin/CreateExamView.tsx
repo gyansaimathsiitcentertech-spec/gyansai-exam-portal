@@ -79,8 +79,8 @@ export const CreateExamView: React.FC = () => {
     ];
 
     const shareUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/?exam=${code}`
-      : `https://gyansaimaths.com/?exam=${code}`;
+      ? `${window.location.origin}/exam/${code.trim()}`
+      : `https://gyansai-exam-portal.vercel.app/exam/${code.trim()}`;
 
     addExam({
       title: title.trim(),

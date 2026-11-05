@@ -199,7 +199,14 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const path = window.location.pathname.toLowerCase();
       const search = window.location.search.toLowerCase();
-      if (search.includes('exam=') || search.includes('share=') || search.includes('test=')) {
+      if (
+        path.includes('/exam') ||
+        path.includes('/share') ||
+        path.includes('/test') ||
+        search.includes('exam=') ||
+        search.includes('share=') ||
+        search.includes('test=')
+      ) {
         return 'public_exam';
       }
       const isAuth = loadFromStorage('admin_auth', false);
@@ -222,12 +229,40 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     setPortalModeState(mode);
+    try {
+      if (mode === 'landing') {
+        window.history.pushState({}, '', '/');
+      } else if (mode === 'student') {
+        window.history.pushState({}, '', '/student');
+      } else if (mode === 'login') {
+        window.history.pushState({}, '', '/login');
+      } else if (mode === 'admin') {
+        window.history.pushState({}, '', '/admin');
+      }
+    } catch {
+      // ignore
+    }
   };
   const [activeAdminTab, setActiveAdminTab] = useState<string>('Dashboard');
   const [activeStudentTab, setActiveStudentTab] = useState<string>('Dashboard');
 
   const [activeExamIdForCBT, setActiveExamIdForCBT] = useState<string | null>(null);
-  const [activeExamIdForShare, setActiveExamIdForShare] = useState<string | null>(null);
+  const [activeExamIdForShare, setActiveExamIdForShare] = useState<string | null>(() => {
+    try {
+      const path = window.location.pathname;
+      if (path.toLowerCase().includes('/exam/')) {
+        const parts = path.split(/\/exam\//i);
+        if (parts[1]) {
+          const raw = decodeURIComponent(parts[1].split('/')[0].split('?')[0]);
+          if (raw) return raw;
+        }
+      }
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('exam') || urlParams.get('test') || urlParams.get('share') || null;
+    } catch {
+      return null;
+    }
+  });
   const [activeExamForQuestionsModal, setActiveExamForQuestionsModal] = useState<Exam | null>(null);
   const [selectedAttemptForResult, setSelectedAttemptForResult] = useState<ExamAttempt | null>(null);
 
@@ -239,21 +274,57 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
 
-  // Check URL parameters on mount for direct shared exam landing (?exam=CODE or ?share=ID)
+  // Check URL pathname & query parameters on mount and on popstate for direct shared exam landing (/exam/:id or ?exam=CODE)
   useEffect(() => {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const examParam = urlParams.get('exam') || urlParams.get('test') || urlParams.get('share');
-      if (examParam) {
-        const found = exams.find(e => e.code.toLowerCase() === examParam.toLowerCase() || e.id === examParam);
-        if (found) {
-          setActiveExamIdForShare(found.id);
-          setPortalMode('public_exam');
+    const resolveUrlRoute = () => {
+      try {
+        const path = window.location.pathname;
+        const search = window.location.search;
+        let examParam: string | null = null;
+
+        if (path.toLowerCase().includes('/exam/')) {
+          const parts = path.split(/\/exam\//i);
+          if (parts[1]) {
+            examParam = decodeURIComponent(parts[1].split('/')[0].split('?')[0]);
+          }
         }
+        if (!examParam) {
+          const urlParams = new URLSearchParams(search);
+          examParam = urlParams.get('exam') || urlParams.get('test') || urlParams.get('share');
+        }
+
+        if (examParam) {
+          const found = exams.find(
+            e => e.id.toLowerCase() === examParam!.toLowerCase() ||
+                 e.code.toLowerCase() === examParam!.toLowerCase()
+          );
+          if (found) {
+            setActiveExamIdForShare(found.id);
+          } else {
+            setActiveExamIdForShare(examParam);
+          }
+          setPortalModeState('public_exam');
+        } else if (path.toLowerCase().startsWith('/exam')) {
+          if (exams.length > 0) {
+            setActiveExamIdForShare(exams[0].id);
+          }
+          setPortalModeState('public_exam');
+        } else if (path.toLowerCase().includes('/login')) {
+          setPortalModeState('login');
+        } else if (path.toLowerCase().includes('/student') || path.toLowerCase().includes('/app')) {
+          setPortalModeState('student');
+        } else if (path.toLowerCase().includes('/admin')) {
+          const isAuth = loadFromStorage('admin_auth', false);
+          setPortalModeState(isAuth ? 'admin' : 'landing');
+        }
+      } catch (err) {
+        console.error('Error resolving URL route:', err);
       }
-    } catch {
-      // ignore
-    }
+    };
+
+    resolveUrlRoute();
+    window.addEventListener('popstate', resolveUrlRoute);
+    return () => window.removeEventListener('popstate', resolveUrlRoute);
   }, [exams]);
 
   // Sync to localStorage

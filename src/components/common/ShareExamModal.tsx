@@ -17,8 +17,8 @@ export const ShareExamModal: React.FC = () => {
   const currentExam = exams.find(e => e.id === activeExamIdForShare) || exams[0];
 
   const shareUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/exam/${currentExam?.id || 'b9675672-2d0b-4256-a995-1df55b3e2189'}`
-    : `https://iit-test-portal.preview.emergentagent.com/exam/${currentExam?.id}`;
+    ? `${window.location.origin}/exam/${currentExam?.id || 'exam-1'}`
+    : `https://gyansai-exam-portal.vercel.app/exam/${currentExam?.id || 'exam-1'}`;
 
   useEffect(() => {
     if (shareUrl) {
