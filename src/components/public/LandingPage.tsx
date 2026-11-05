@@ -18,9 +18,11 @@ import {
   Clock,
   Users
 } from 'lucide-react';
+import { InstituteLogo } from '../common/InstituteLogo';
 
 export const LandingPage: React.FC = () => {
   const {
+    settings,
     setPortalMode,
     setActiveAdminTab,
     setActiveStudentTab,
@@ -69,26 +71,18 @@ export const LandingPage: React.FC = () => {
             onClick={() => setPortalMode('landing')}
             className="flex items-center space-x-3 cursor-pointer select-none"
           >
-            {/* Colorful Logo Emblem */}
-            <div className="w-11 h-11 rounded-lg border border-gray-200 bg-white flex items-center justify-center p-1 shadow-2xs">
-              <svg viewBox="0 0 48 48" className="w-9 h-9" fill="none">
-                <circle cx="24" cy="24" r="22" fill="#FEF3C7" />
-                <path d="M12 32C12 26 18 24 24 24C30 24 36 26 36 32" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M15 22L24 14L33 22" stroke="#2563EB" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M18 24V32" stroke="#2563EB" strokeWidth="2.5" />
-                <path d="M30 24V32" stroke="#2563EB" strokeWidth="2.5" />
-                <circle cx="24" cy="18" r="3.5" fill="#DC2626" />
-                <text x="24" y="42" textAnchor="middle" fontSize="6" fontWeight="bold" fill="#B45309">
-                  ज्ञानसाई
-                </text>
-              </svg>
-            </div>
+            {/* Dynamic Institute Logo */}
+            <InstituteLogo
+              className="w-11 h-11"
+              imgClassName="max-h-11 max-w-11 object-contain rounded"
+              fallbackType="emblem"
+            />
             <div>
               <div className="font-bold text-base text-gray-900 tracking-tight leading-none">
-                Gyansai Maths IIT Center
+                {settings?.instituteName || 'Gyansai Maths IIT Center'}
               </div>
               <div className="text-[10px] text-gray-500 font-mono tracking-[0.25em] uppercase mt-1 leading-none">
-                STORAGE
+                {settings?.storageTag || 'STORAGE'}
               </div>
             </div>
           </div>
@@ -465,18 +459,20 @@ export const LandingPage: React.FC = () => {
             {/* Col 1: Institute Info */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded bg-[#002FA7] text-white flex items-center justify-center font-bold">
-                  <BookOpen className="w-4 h-4" />
-                </div>
+                <InstituteLogo
+                  className="w-8 h-8"
+                  imgClassName="max-h-8 max-w-8 object-contain rounded"
+                  fallbackType="book"
+                />
                 <span className="font-bold text-base text-gray-900">
-                  Gyansai Maths IIT Center
+                  {settings?.instituteName || 'Gyansai Maths IIT Center'}
                 </span>
               </div>
               <p className="text-xs text-gray-500 font-mono">
-                TEST tagline 1781422274
+                {settings?.tagline || 'TEST tagline 1781422274'}
               </p>
               <p className="text-xs text-gray-600 leading-relaxed max-w-sm">
-                Maths IIT Center, Eknath Rang Mandir Rd, New Usmanpura, Chhatrapati Sambhajinagar
+                {settings?.address || 'Maths IIT Center, Eknath Rang Mandir Rd, New Usmanpura, Chhatrapati Sambhajinagar'}
               </p>
             </div>
 

@@ -17,9 +17,11 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Question, StudentAnswer, ExamAttempt } from '../../types';
+import { InstituteLogo } from '../common/InstituteLogo';
 
 export const OnlineExamInterface: React.FC = () => {
   const {
+    settings,
     activeExamIdForCBT,
     setActiveExamIdForCBT,
     setPortalMode,
@@ -448,15 +450,17 @@ export const OnlineExamInterface: React.FC = () => {
       {/* 1. TOP EXAM HEADER */}
       <header className="h-14 bg-white border-b border-slate-200 px-4 flex items-center justify-between sticky top-0 z-30 shadow-2xs">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded bg-[#1E3A8A] text-white flex items-center justify-center font-bold">
-            <GraduationCap className="w-5 h-5" />
-          </div>
+          <InstituteLogo
+            className="w-8 h-8 rounded"
+            imgClassName="max-h-8 max-w-8 object-contain rounded"
+            fallbackType="cap"
+          />
           <div>
             <h1 className="font-extrabold text-sm text-slate-900 uppercase tracking-tight truncate max-w-xs sm:max-w-md">
               {exam.title}
             </h1>
-            <p className="text-[10px] text-slate-500 font-semibold">
-              GYANSAI MATHS IIT CENTER &bull; Code: {exam.code}
+            <p className="text-[10px] text-slate-500 font-semibold uppercase">
+              {settings?.instituteName || 'GYANSAI MATHS IIT CENTER'} &bull; Code: {exam.code}
             </p>
           </div>
         </div>

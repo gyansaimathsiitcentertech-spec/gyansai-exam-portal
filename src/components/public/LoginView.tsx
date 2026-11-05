@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { InstituteLogo } from '../common/InstituteLogo';
 
 export const LoginView: React.FC = () => {
   const {
@@ -65,24 +66,19 @@ export const LoginView: React.FC = () => {
           }}
         />
 
-        {/* Top-left: Logo */}
+        {/* Top-left: Dynamic Logo */}
         <div className="relative z-10 flex items-center space-x-3 select-none">
-          <div className="w-10 h-10 rounded border border-neutral-700 bg-white flex items-center justify-center p-1 shadow-xs">
-            <svg viewBox="0 0 48 48" className="w-8 h-8" fill="none">
-              <circle cx="24" cy="24" r="22" fill="#FEF3C7" />
-              <path d="M12 32C12 26 18 24 24 24C30 24 36 26 36 32" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" />
-              <path d="M15 22L24 14L33 22" stroke="#2563EB" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M18 24V32" stroke="#2563EB" strokeWidth="2.5" />
-              <path d="M30 24V32" stroke="#2563EB" strokeWidth="2.5" />
-              <circle cx="24" cy="18" r="3.5" fill="#DC2626" />
-            </svg>
-          </div>
+          <InstituteLogo
+            className="w-10 h-10 border border-neutral-700 shadow-xs"
+            imgClassName="max-h-10 max-w-10 object-contain rounded"
+            fallbackType="emblem"
+          />
           <div>
             <div className="font-bold text-sm sm:text-base text-white tracking-tight">
-              Gyansai Maths IIT Center
+              {settings?.instituteName || 'Gyansai Maths IIT Center'}
             </div>
             <div className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">
-              TEST PORTAL · V2.0
+              {settings?.storageTag ? `${settings.storageTag} · TEST PORTAL` : 'TEST PORTAL · V2.0'}
             </div>
           </div>
         </div>

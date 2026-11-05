@@ -18,6 +18,7 @@ import { LandingPage } from './components/public/LandingPage';
 import { LoginView } from './components/public/LoginView';
 import { OnlineExamInterface } from './components/exam/OnlineExamInterface';
 import { ToastContainer } from './components/common/ToastContainer';
+import { InstituteLogo } from './components/common/InstituteLogo';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 
 // Admin Views
@@ -67,9 +68,11 @@ const AdminAccessGate: React.FC = () => {
   return (
     <div className="min-h-[70vh] flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full bg-white border border-gray-200 rounded-sm p-8 shadow-xs text-center animate-in fade-in">
-        <div className="w-14 h-14 mx-auto rounded-full bg-blue-50 border border-blue-200 text-[#002FA7] flex items-center justify-center mb-4">
-          <Lock className="w-6 h-6" />
-        </div>
+        <InstituteLogo
+          className="w-14 h-14 mx-auto mb-4 rounded-xl border border-blue-200 shadow-xs"
+          imgClassName="max-h-14 max-w-14 object-contain rounded-xl"
+          fallbackType="grid"
+        />
         <div className="text-[10px] font-mono tracking-widest text-[#002FA7] uppercase font-bold">
           // ACCESS CONTROL
         </div>

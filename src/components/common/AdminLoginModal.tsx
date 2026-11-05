@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import { ShieldAlert, Lock, Eye, EyeOff, X, KeyRound, CheckCircle2, ArrowRight } from 'lucide-react';
+import { InstituteLogo } from './InstituteLogo';
 
 export const AdminLoginModal: React.FC = () => {
   const {
@@ -62,9 +63,11 @@ export const AdminLoginModal: React.FC = () => {
           </button>
 
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded bg-[#002FA7] border border-blue-400/30 flex items-center justify-center text-white shrink-0 shadow-xs">
-              <Lock className="w-5 h-5" />
-            </div>
+            <InstituteLogo
+              className="w-10 h-10 rounded border border-blue-400/30 shadow-xs"
+              imgClassName="max-h-10 max-w-10 object-contain rounded"
+              fallbackType="grid"
+            />
             <div>
               <div className="text-[10px] font-mono tracking-widest text-blue-400 uppercase font-semibold">
                 // SECURE FACULTY GATE

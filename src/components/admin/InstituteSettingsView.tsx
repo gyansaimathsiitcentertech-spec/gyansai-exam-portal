@@ -52,9 +52,50 @@ export const InstituteSettingsView: React.FC = () => {
 
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setter(reader.result);
-        showToast(`${label} uploaded.`);
+      const result = reader.result;
+      if (typeof result === 'string') {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = label.toLowerCase().includes('hero') ? 800 : 360;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const optimized = canvas.toDataURL('image/png', 0.9);
+            setter(optimized);
+            if (label.toLowerCase() === 'logo') {
+              updateSettings({ logoUrl: optimized });
+            }
+            showToast(`${label} processed and saved to portal!`);
+          } else {
+            setter(result);
+            if (label.toLowerCase() === 'logo') {
+              updateSettings({ logoUrl: result });
+            }
+            showToast(`${label} uploaded and saved.`);
+          }
+        };
+        img.onerror = () => {
+          setter(result);
+          if (label.toLowerCase() === 'logo') {
+            updateSettings({ logoUrl: result });
+          }
+          showToast(`${label} uploaded and saved.`);
+        };
+        img.src = result;
       }
     };
     reader.readAsDataURL(file);
@@ -100,16 +141,25 @@ export const InstituteSettingsView: React.FC = () => {
   return (
     <form onSubmit={handleSave} className="space-y-6 font-sans text-xs">
       {/* Top Header - Exact Screenshot 477 */}
-      <div>
-        <div className="text-xs font-mono font-medium tracking-widest text-gray-400 uppercase mb-1">
-          // CONFIGURATION
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="text-xs font-mono font-medium tracking-widest text-gray-400 uppercase mb-1">
+            // CONFIGURATION
+          </div>
+          <h1 className="text-2xl font-extrabold text-gray-950 tracking-tight">
+            Institute Settings
+          </h1>
+          <p className="text-xs text-gray-500 mt-1">
+            All fields are editable — changes propagate to public pages and certificates in real-time.
+          </p>
         </div>
-        <h1 className="text-2xl font-extrabold text-gray-950 tracking-tight">
-          Institute Settings
-        </h1>
-        <p className="text-xs text-gray-500 mt-1">
-          All fields are editable — changes propagate to public pages and certificates in real-time.
-        </p>
+        <button
+          type="submit"
+          className="px-5 py-2 bg-[#002FA7] hover:bg-blue-800 text-white font-semibold text-xs rounded flex items-center space-x-2 cursor-pointer shadow-xs transition self-start sm:self-auto"
+        >
+          <Save className="w-4 h-4" />
+          <span>Save Settings</span>
+        </button>
       </div>
 
       {/* Card 1: Branding */}
@@ -171,8 +221,13 @@ export const InstituteSettingsView: React.FC = () => {
             <div className="flex items-center space-x-2">
               <input
                 type="text"
-                value={logoUrl.startsWith('data:') ? 'Uploaded image (base64)' : logoUrl}
-                onChange={e => setLogoUrl(e.target.value)}
+                placeholder={logoUrl.startsWith('data:') ? 'Custom uploaded image (base64)' : 'https://... or select image'}
+                value={logoUrl.startsWith('data:') ? 'Custom uploaded image (Active)' : logoUrl}
+                onChange={e => {
+                  const val = e.target.value;
+                  setLogoUrl(val);
+                  updateSettings({ logoUrl: val });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:border-blue-600"
               />
               <button
@@ -183,11 +238,27 @@ export const InstituteSettingsView: React.FC = () => {
                 <Upload className="w-3.5 h-3.5 text-blue-600" />
                 <span>Upload</span>
               </button>
+              {logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLogoUrl('');
+                    updateSettings({ logoUrl: '' });
+                    showToast('Logo cleared.');
+                  }}
+                  className="p-2 border border-gray-300 rounded text-red-600 hover:bg-red-50 flex items-center cursor-pointer shrink-0"
+                  title="Remove logo"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
             {logoUrl && (
               <div className="mt-2 flex items-center space-x-2">
-                <img src={logoUrl} alt="Logo preview" className="h-10 w-10 object-contain rounded border p-0.5 bg-white" />
-                <span className="text-[10px] text-gray-400">Current logo preview</span>
+                <img src={logoUrl} alt="Logo preview" className="h-10 w-10 object-contain rounded border p-0.5 bg-white shrink-0" />
+                <span className="text-[10px] text-emerald-600 font-medium">
+                  ✓ Active frontend logo (updates across Landing Page, Navbar, Footer, & Portal)
+                </span>
               </div>
             )}
           </div>

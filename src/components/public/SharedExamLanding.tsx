@@ -8,9 +8,11 @@ import {
   UserPlus,
   LogIn
 } from 'lucide-react';
+import { InstituteLogo } from '../common/InstituteLogo';
 
 export const SharedExamLanding: React.FC = () => {
   const {
+    settings,
     exams,
     activeExamIdForShare,
     setPortalMode,
@@ -29,8 +31,14 @@ export const SharedExamLanding: React.FC = () => {
           onClick={() => setPortalMode('landing')}
           className="flex items-center space-x-2 text-slate-900 font-semibold cursor-pointer select-none"
         >
-          <GraduationCap className="w-5 h-5 text-blue-700" />
-          <span className="text-sm font-bold tracking-tight">Gyansai</span>
+          <InstituteLogo
+            className="w-6 h-6 rounded"
+            imgClassName="max-h-6 max-w-6 object-contain"
+            fallbackType="cap"
+          />
+          <span className="text-sm font-bold tracking-tight">
+            {settings?.instituteName?.split(' ')[0] || 'Gyansai'}
+          </span>
         </div>
 
         <div className="text-xs font-mono font-medium text-gray-500 uppercase tracking-widest">

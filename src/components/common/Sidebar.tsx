@@ -19,9 +19,11 @@ import {
   User,
   LogOut
 } from 'lucide-react';
+import { InstituteLogo } from './InstituteLogo';
 
 export const Sidebar: React.FC = () => {
   const {
+    settings,
     portalMode,
     setPortalMode,
     activeAdminTab,
@@ -95,11 +97,15 @@ export const Sidebar: React.FC = () => {
         onClick={() => setPortalMode('landing')}
         className="p-4 flex items-center space-x-2.5 border-b border-gray-100 cursor-pointer hover:bg-gray-50/50 transition"
       >
-        <div className="w-8 h-8 rounded bg-[#002FA7] flex items-center justify-center text-white shrink-0 shadow-2xs">
-          <LayoutGrid className="w-4 h-4" />
-        </div>
+        <InstituteLogo
+          className="w-8 h-8 rounded shrink-0 shadow-2xs"
+          imgClassName="w-8 h-8 object-contain rounded"
+          fallbackType="grid"
+        />
         <div className="overflow-hidden">
-          <div className="text-sm font-bold text-gray-950 leading-tight">Gyansai</div>
+          <div className="text-sm font-bold text-gray-950 leading-tight truncate">
+            {settings?.instituteName?.split(' ')[0] || 'Gyansai'}
+          </div>
           <div className="text-[10px] font-mono tracking-wider text-gray-400 uppercase leading-none mt-0.5">
             {portalMode === 'admin' ? 'ADMIN CONSOLE' : 'STUDENT PORTAL'}
           </div>

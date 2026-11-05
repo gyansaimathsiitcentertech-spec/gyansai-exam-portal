@@ -11,9 +11,11 @@ import {
   Sparkles,
   BookOpen
 } from 'lucide-react';
+import { InstituteLogo } from './InstituteLogo';
 
 export const Header: React.FC = () => {
   const {
+    settings,
     currentUser,
     setCurrentUser,
     users,
@@ -31,20 +33,22 @@ export const Header: React.FC = () => {
     <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 select-none shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
       {/* Brand logo & title */}
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-[#1E3A8A] text-white flex items-center justify-center rounded font-bold shadow-sm">
-          <GraduationCap className="w-6 h-6" />
-        </div>
+        <InstituteLogo
+          className="w-10 h-10 rounded shadow-xs"
+          imgClassName="w-10 h-10 object-contain rounded"
+          fallbackType="cap"
+        />
         <div>
           <div className="flex items-center space-x-2">
             <span className="font-extrabold text-[15px] sm:text-[17px] tracking-tight text-slate-900 uppercase">
-              GYANSAI MATHS IIT CENTER
+              {settings?.instituteName || 'GYANSAI MATHS IIT CENTER'}
             </span>
             <span className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-[#1E3A8A] border border-blue-200">
               OFFICIAL CBT PORTAL
             </span>
           </div>
           <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-            Premier Institute for IIT-JEE (Main & Adv) &bull; Founded by Prof. Taterao Kendre (KT Sir)
+            {settings?.tagline || 'Premier Institute for IIT-JEE (Main & Adv) • Founded by Prof. Taterao Kendre (KT Sir)'}
           </p>
         </div>
       </div>

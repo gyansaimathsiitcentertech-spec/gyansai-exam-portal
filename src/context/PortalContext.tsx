@@ -273,6 +273,24 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => { saveToStorage('payments', payments); }, [payments]);
   useEffect(() => { saveToStorage('admin_auth', isAdminAuthenticated); }, [isAdminAuthenticated]);
 
+  // Dynamically sync browser tab favicon with custom logo/favicon
+  useEffect(() => {
+    try {
+      const fav = settings?.faviconUrl || settings?.logoUrl;
+      if (fav) {
+        let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement | null;
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'shortcut icon';
+          document.head.appendChild(link);
+        }
+        link.href = fav;
+      }
+    } catch {
+      // ignore in SSR / environments without document
+    }
+  }, [settings?.faviconUrl, settings?.logoUrl]);
+
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = 'toast-' + Math.random().toString(36).substring(2, 9);
     setToasts(prev => [...prev, { id, message, type }]);
