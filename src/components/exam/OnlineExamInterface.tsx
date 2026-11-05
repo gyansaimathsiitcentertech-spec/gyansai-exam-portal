@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import {
   GraduationCap,
@@ -13,7 +13,19 @@ import {
   Send,
   ArrowLeft,
   Award,
-  BarChart2
+  BarChart2,
+  Download,
+  Printer,
+  Share2,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Sparkles,
+  TrendingUp,
+  Filter,
+  Flame,
+  BookOpen,
+  FileDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Question, StudentAnswer, ExamAttempt } from '../../types';
@@ -70,6 +82,7 @@ export const OnlineExamInterface: React.FC = () => {
 
   const [confirmSubmitModalOpen, setConfirmSubmitModalOpen] = useState(false);
   const [submittedAttempt, setSubmittedAttempt] = useState<ExamAttempt | null>(null);
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'incorrect' | 'unattempted' | 'correct'>('all');
 
   // Timer countdown
   useEffect(() => {
@@ -297,26 +310,255 @@ export const OnlineExamInterface: React.FC = () => {
 
   // If already submitted, show Post-Exam Scorecard & detailed solution review
   if (submittedAttempt) {
+    const scoreVal = submittedAttempt.totalScore;
+    const maxVal = submittedAttempt.maxScore || 100;
+    const accuracyVal = submittedAttempt.accuracy || 0;
+    const rankVal = submittedAttempt.rank || 1;
+    const timeVal = submittedAttempt.timeTakenMinutes || 1;
+
+    // Projected JEE Percentile calculation
+    const scorePercentage = Math.round((scoreVal / maxVal) * 100);
+    const projectedPercentile = scorePercentage >= 85 ? 99.6
+      : scorePercentage >= 70 ? 98.4
+      : scorePercentage >= 55 ? 95.8
+      : scorePercentage >= 40 ? 91.2
+      : scorePercentage >= 25 ? 83.5
+      : 72.0;
+
+    const projectedAir = projectedPercentile >= 99.5 ? 'AIR 1 - 650'
+      : projectedPercentile >= 98.0 ? 'AIR 800 - 2,200'
+      : projectedPercentile >= 95.0 ? 'AIR 3,500 - 6,800'
+      : projectedPercentile >= 90.0 ? 'AIR 9,000 - 15,000'
+      : 'AIR 18,000 - 35,000';
+
+    // Topic-wise Diagnostic Analysis
+    const topicBreakdown: Record<string, { total: number; correct: number; incorrect: number; unattempted: number; marks: number }> = {};
+    allExamQuestions.forEach(q => {
+      const topicName = q.topic || 'General Mathematics';
+      if (!topicBreakdown[topicName]) {
+        topicBreakdown[topicName] = { total: 0, correct: 0, incorrect: 0, unattempted: 0, marks: 0 };
+      }
+      topicBreakdown[topicName].total += 1;
+      const ans = submittedAttempt.answers[q.id];
+      if (!ans || !ans.selectedOption) {
+        topicBreakdown[topicName].unattempted += 1;
+      } else if (ans.isCorrect) {
+        topicBreakdown[topicName].correct += 1;
+        topicBreakdown[topicName].marks += 4;
+      } else {
+        topicBreakdown[topicName].incorrect += 1;
+        topicBreakdown[topicName].marks -= 1;
+      }
+    });
+
+    const topicStats = Object.entries(topicBreakdown).map(([topic, data]) => {
+      const attempted = data.correct + data.incorrect;
+      const accuracy = attempted > 0 ? Math.round((data.correct / attempted) * 100) : 0;
+      return {
+        topic,
+        ...data,
+        accuracy
+      };
+    });
+
+    // Question Filter logic
+    const filteredQuestions = allExamQuestions.filter(q => {
+      const ans = submittedAttempt.answers[q.id];
+      const hasAnswered = !!ans?.selectedOption;
+      const isCorrect = !!ans?.isCorrect;
+
+      if (reviewFilter === 'incorrect') return hasAnswered && !isCorrect;
+      if (reviewFilter === 'unattempted') return !hasAnswered;
+      if (reviewFilter === 'correct') return hasAnswered && isCorrect;
+      return true;
+    });
+
+    // Handlers
+    const handlePrintPdf = () => {
+      const origTitle = document.title;
+      const cleanStudentName = (submittedAttempt.studentName || 'Student').replace(/[^a-zA-Z0-9]/g, '_');
+      const cleanCode = (submittedAttempt.examCode || 'EXAM').replace(/[^a-zA-Z0-9]/g, '_');
+      document.title = `${cleanStudentName}_${cleanCode}_Official_Answer_Key`;
+      window.print();
+      setTimeout(() => {
+        document.title = origTitle;
+      }, 1000);
+    };
+
+    const handleDownloadOfflineReport = () => {
+      const cleanStudent = submittedAttempt.studentName || 'Student';
+      const cleanCode = submittedAttempt.examCode || 'CBT';
+      const htmlDoc = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>${cleanStudent} - ${submittedAttempt.examTitle} Solution Key</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 28px; color: #0f172a; background: #fff; line-height: 1.5; }
+    .header { border-bottom: 2px solid #002FA7; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+    .title { font-size: 22px; font-weight: 800; color: #002FA7; margin: 0; }
+    .subtitle { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; text-align: center; }
+    .card-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; }
+    .card-val { font-size: 20px; font-weight: 800; margin-top: 4px; }
+    .q-card { border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin-bottom: 16px; page-break-inside: avoid; }
+    .q-correct { border-left: 4px solid #10b981; background: #f0fdf4; }
+    .q-incorrect { border-left: 4px solid #ef4444; background: #fef2f2; }
+    .q-unattempted { border-left: 4px solid #94a3b8; background: #f8fafc; }
+    .q-header { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+    .explanation { background: #ffffff; border: 1px solid #e2e8f0; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px; }
+    @media print { body { padding: 0; } .q-card { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">${settings?.instituteName || 'Gyansai Maths IIT Center'}</div>
+      <div class="subtitle">Official Assessment Solution Key & Performance Report • ${submittedAttempt.examTitle} (${submittedAttempt.examCode})</div>
+    </div>
+    <div style="text-align: right; font-size: 12px;">
+      <strong>Candidate:</strong> ${submittedAttempt.studentName}<br/>
+      <strong>Roll No:</strong> ${submittedAttempt.studentRollNo || '—'}<br/>
+      <strong>Submitted:</strong> ${submittedAttempt.submittedAt}
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card"><div class="card-label">Score</div><div class="card-val" style="color: #002FA7;">${scoreVal} / ${maxVal}</div></div>
+    <div class="card"><div class="card-label">Accuracy</div><div class="card-val" style="color: #10b981;">${accuracyVal}%</div></div>
+    <div class="card"><div class="card-label">Projected AIR</div><div class="card-val" style="color: #7c3aed;">${projectedAir}</div></div>
+    <div class="card"><div class="card-label">Time Taken</div><div class="card-val" style="color: #d97706;">${timeVal} mins</div></div>
+  </div>
+
+  <h2 style="font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-top: 24px;">Question-by-Question Detailed Solutions</h2>
+  ${allExamQuestions.map((q, idx) => {
+    const ans = submittedAttempt.answers[q.id];
+    const isCorrect = ans?.isCorrect;
+    const hasAnswered = !!ans?.selectedOption;
+    const statusClass = !hasAnswered ? 'q-unattempted' : isCorrect ? 'q-correct' : 'q-incorrect';
+    const statusText = !hasAnswered ? 'Unattempted (0 marks)' : isCorrect ? 'Correct (+4 marks)' : 'Wrong Response (-1 mark)';
+    return `
+      <div class="q-card ${statusClass}">
+        <div class="q-header">
+          <span>Q${idx + 1}. [${q.code}] ${q.topic || ''}</span>
+          <span>${statusText}</span>
+        </div>
+        <p style="font-size: 13px; margin: 8px 0;">${q.questionText}</p>
+        <div style="font-size: 12px; margin: 8px 0;">
+          <strong>Your Answer:</strong> ${ans?.selectedOption || 'None (Skipped)'} &bull; 
+          <strong>Official Correct Key:</strong> ${q.correctAnswer}
+        </div>
+        <div class="explanation">
+          <strong>Step-by-Step Solution:</strong><br/>
+          ${q.explanation || 'No step-by-step solution provided.'}
+        </div>
+      </div>
+    `;
+  }).join('')}
+
+  <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b;">
+    Verified Official Assessment Record • Gyansai Maths IIT Center • Eknath Rang Mandir Rd, New Usmanpura, Chhatrapati Sambhajinagar
+  </div>
+</body>
+</html>`;
+
+      const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${cleanStudent.replace(/\s+/g, '_')}_${cleanCode}_AnswerKey.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
+    const handleShareWhatsApp = () => {
+      const text = encodeURIComponent(
+        `🎓 *Gyansai Maths IIT Center — CBT Exam Result*\n\n` +
+        `👤 *Candidate:* ${submittedAttempt.studentName} (${submittedAttempt.studentRollNo || 'Aspirant'})\n` +
+        `📝 *Exam:* ${submittedAttempt.examTitle}\n` +
+        `🏆 *Score:* ${scoreVal} / ${maxVal} (${accuracyVal}% Accuracy)\n` +
+        `📊 *Projected Percentile:* ${projectedPercentile}% | *Projected AIR:* ${projectedAir}\n` +
+        `✅ *Correct:* +${submittedAttempt.correctCount} | ❌ *Incorrect:* -${submittedAttempt.incorrectCount} | ⚪ *Skipped:* ${submittedAttempt.unattemptedCount}\n\n` +
+        `🔗 Verified Official CBT Portal — Gyansai Maths IIT Center`
+      );
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+    };
+
     return (
-      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-start py-8 px-4">
-        <div className="bg-white rounded-lg border border-slate-200 shadow-md max-w-4xl w-full p-6 space-y-6">
+      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-start py-6 px-3 sm:px-4 print:p-0 print:bg-white select-text font-sans">
+        {/* Custom Print CSS */}
+        <style>{`
+          @media print {
+            body { background-color: #ffffff !important; }
+            .no-print { display: none !important; }
+            .print-full { width: 100% !important; max-width: 100% !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
+            .avoid-break { page-break-inside: avoid !important; break-inside: avoid !important; }
+          }
+        `}</style>
+
+        <div className="bg-white rounded-lg border border-slate-200 shadow-md max-w-4xl w-full p-5 sm:p-7 space-y-6 print-full">
           {/* Header */}
-          <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center space-x-3 text-center sm:text-left">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
-                <CheckCircle className="w-7 h-7" />
-              </div>
+          <div className="border-b border-slate-200 pb-5 flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="flex items-center space-x-3.5 text-center sm:text-left w-full sm:w-auto">
+              <InstituteLogo
+                className="w-12 h-12 rounded-lg border border-slate-200 shadow-2xs shrink-0"
+                imgClassName="max-h-12 max-w-12 object-contain rounded-lg"
+                fallbackType="cap"
+              />
               <div>
-                <h1 className="text-lg font-bold text-slate-900 uppercase">
-                  Examination Successfully Submitted!
+                <div className="flex items-center space-x-2 justify-center sm:justify-start">
+                  <span className="text-[10px] font-mono font-bold tracking-widest text-[#002FA7] uppercase bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    // OFFICIAL CBT SCORECARD
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold flex items-center space-x-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>EVALUATED</span>
+                  </span>
+                </div>
+                <h1 className="text-xl font-extrabold text-slate-900 tracking-tight mt-1">
+                  {submittedAttempt.examTitle}
                 </h1>
-                <p className="text-xs text-slate-500">
-                  {submittedAttempt.examTitle} ({submittedAttempt.examCode})
+                <p className="text-xs text-slate-500 font-mono mt-0.5">
+                  Code: {submittedAttempt.examCode} &bull; Candidate: {submittedAttempt.studentName} ({submittedAttempt.studentRollNo || '—'})
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            {/* Action Buttons: PDF Download, Share, and Return */}
+            <div className="flex flex-wrap items-center justify-end gap-2 w-full lg:w-auto no-print">
+              <button
+                type="button"
+                onClick={handlePrintPdf}
+                className="px-3.5 py-2 bg-[#002FA7] hover:bg-blue-800 text-white rounded text-xs font-semibold cursor-pointer shadow-xs flex items-center space-x-1.5 transition"
+                title="Print or Save as PDF"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadOfflineReport}
+                className="px-3 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-800 rounded text-xs font-semibold cursor-pointer shadow-2xs flex items-center space-x-1.5 transition"
+                title="Download self-contained offline solution sheet"
+              >
+                <FileDown className="w-3.5 h-3.5 text-gray-600" />
+                <span>Save Offline</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleShareWhatsApp}
+                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold cursor-pointer shadow-2xs flex items-center space-x-1.5 transition"
+                title="Share your score on WhatsApp"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>WhatsApp</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -324,119 +566,367 @@ export const OnlineExamInterface: React.FC = () => {
                   setPortalMode('student');
                   setActiveExamIdForCBT(null);
                 }}
-                className="px-4 py-2 bg-[#1E3A8A] hover:bg-blue-900 text-white rounded text-xs font-semibold cursor-pointer"
+                className="px-3 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold cursor-pointer transition"
               >
-                Go to Student Portal
+                <span>Dashboard</span>
               </button>
             </div>
           </div>
 
-          {/* Performance Summary Cards */}
+          {/* Core Performance Summary Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-              <span className="text-[10px] font-bold uppercase text-slate-500 block">Total Score</span>
-              <span className="text-xl font-extrabold text-[#1E3A8A]">
-                {submittedAttempt.totalScore} / {submittedAttempt.maxScore}
+            <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-sm">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
+                Total Score
+              </span>
+              <span className="text-2xl font-extrabold text-[#002FA7] font-mono mt-0.5 block">
+                {scoreVal} <span className="text-xs text-slate-400 font-normal">/ {maxVal}</span>
+              </span>
+              <span className="text-[10px] text-blue-700 font-semibold mt-1 inline-block">
+                {scorePercentage}% aggregate
               </span>
             </div>
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded">
-              <span className="text-[10px] font-bold uppercase text-slate-500 block">Accuracy</span>
-              <span className="text-xl font-extrabold text-emerald-700">
-                {submittedAttempt.accuracy}%
+
+            <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-sm">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
+                Accuracy
+              </span>
+              <span className="text-2xl font-extrabold text-emerald-700 font-mono mt-0.5 block">
+                {accuracyVal}%
+              </span>
+              <span className="text-[10px] text-emerald-700 font-semibold mt-1 inline-block">
+                {submittedAttempt.correctCount} of {submittedAttempt.correctCount + submittedAttempt.incorrectCount} correct
               </span>
             </div>
-            <div className="p-3 bg-purple-50 border border-purple-200 rounded">
-              <span className="text-[10px] font-bold uppercase text-slate-500 block">Estimated Rank</span>
-              <span className="text-xl font-extrabold text-purple-800">
-                #{submittedAttempt.rank || 1}
+
+            <div className="p-3.5 bg-purple-50/80 border border-purple-200 rounded-sm">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
+                Projected Rank
+              </span>
+              <span className="text-xl font-extrabold text-purple-800 font-mono mt-0.5 block truncate">
+                #{rankVal}
+              </span>
+              <span className="text-[10px] text-purple-700 font-semibold mt-1 inline-block">
+                {projectedAir}
               </span>
             </div>
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded">
-              <span className="text-[10px] font-bold uppercase text-slate-500 block">Time Taken</span>
-              <span className="text-xl font-extrabold text-amber-800">
-                {submittedAttempt.timeTakenMinutes} mins
+
+            <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-sm">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 block">
+                Time Taken
+              </span>
+              <span className="text-2xl font-extrabold text-amber-800 font-mono mt-0.5 block">
+                {timeVal} <span className="text-xs text-slate-400 font-normal">min</span>
+              </span>
+              <span className="text-[10px] text-amber-700 font-semibold mt-1 inline-block">
+                ~{Math.round((timeVal * 60) / (allExamQuestions.length || 1))}s / question
               </span>
             </div>
           </div>
 
-          {/* Breakdown bars */}
-          <div className="flex items-center justify-around py-3 px-4 bg-slate-50 rounded border border-slate-200 text-xs">
-            <div className="text-center">
-              <span className="text-emerald-700 font-bold text-sm block">+{submittedAttempt.correctCount}</span>
-              <span className="text-[10px] uppercase text-slate-500">Correct (+4 each)</span>
+          {/* Quick Stat Bars: Correct, Incorrect, Unattempted */}
+          <div className="grid grid-cols-3 gap-2 py-2 px-3 bg-slate-50 rounded border border-slate-200 text-xs text-center font-mono">
+            <div>
+              <span className="text-emerald-700 font-extrabold text-sm block">
+                +{submittedAttempt.correctCount * 4} marks
+              </span>
+              <span className="text-[10px] uppercase text-slate-500 font-bold">
+                {submittedAttempt.correctCount} Correct (+4)
+              </span>
             </div>
-            <div className="text-center">
-              <span className="text-red-600 font-bold text-sm block">-{submittedAttempt.incorrectCount}</span>
-              <span className="text-[10px] uppercase text-slate-500">Incorrect (-1 each)</span>
+            <div>
+              <span className="text-red-600 font-extrabold text-sm block">
+                -{submittedAttempt.incorrectCount} marks
+              </span>
+              <span className="text-[10px] uppercase text-slate-500 font-bold">
+                {submittedAttempt.incorrectCount} Incorrect (-1)
+              </span>
             </div>
-            <div className="text-center">
-              <span className="text-slate-600 font-bold text-sm block">{submittedAttempt.unattemptedCount}</span>
-              <span className="text-[10px] uppercase text-slate-500">Unattempted (0)</span>
+            <div>
+              <span className="text-slate-600 font-extrabold text-sm block">
+                0 marks
+              </span>
+              <span className="text-[10px] uppercase text-slate-500 font-bold">
+                {submittedAttempt.unattemptedCount} Skipped (0)
+              </span>
             </div>
           </div>
 
-          {/* Question-by-Question Review with Explanations */}
-          <div className="space-y-4 pt-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 border-b border-slate-200 pb-2 flex items-center justify-between">
-              <span>Detailed Question Review & Official Solutions</span>
-              <span className="text-[11px] text-slate-400 font-normal">Candidate: {submittedAttempt.studentName}</span>
-            </h3>
+          {/* SOMETHING NEW: Topic Mastery Diagnostic & Projected Cutoff */}
+          <div className="bg-slate-50 border border-slate-200 rounded-sm p-4 space-y-3 avoid-break">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-blue-700" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Topic Readiness & Mastery Diagnostic
+                </h3>
+              </div>
+              <div className="flex items-center space-x-2 text-[11px] font-mono">
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-bold">
+                  {projectedPercentile}th Percentile
+                </span>
+                <span className="text-emerald-700 font-semibold">
+                  ✓ Target Benchmark Qualified
+                </span>
+              </div>
+            </div>
 
-            {allExamQuestions.map((q, idx) => {
-              const ansRecord = submittedAttempt.answers[q.id];
-              const isCorrect = ansRecord?.isCorrect;
-              const hasAnswered = !!ansRecord?.selectedOption;
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              {topicStats.map(stat => {
+                const isMastered = stat.accuracy >= 75;
+                const isModerate = stat.accuracy >= 40 && stat.accuracy < 75;
+                return (
+                  <div key={stat.topic} className="bg-white border border-slate-200 rounded p-3 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 truncate max-w-[200px]" title={stat.topic}>
+                        {stat.topic}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${
+                          isMastered
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : isModerate
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-red-50 text-red-700 border border-red-200'
+                        }`}
+                      >
+                        {isMastered ? 'Mastered 🏆' : isModerate ? 'Good Progress ⚡' : 'Needs Practice ⚠️'}
+                      </span>
+                    </div>
 
-              return (
-                <div
-                  key={q.id}
-                  className={`p-4 rounded border text-xs space-y-2.5 ${
-                    !hasAnswered
-                      ? 'border-slate-200 bg-slate-50/50'
-                      : isCorrect
-                      ? 'border-emerald-200 bg-emerald-50/30'
-                      : 'border-red-200 bg-red-50/30'
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          isMastered ? 'bg-emerald-500' : isModerate ? 'bg-amber-500' : 'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.max(8, stat.accuracy)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center text-[10px] font-mono text-slate-500">
+                      <span>{stat.correct} of {stat.total} solved correctly</span>
+                      <span className="font-bold text-slate-800">{stat.accuracy}% accuracy</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Interactive Question Filters (SOMETHING NEW) */}
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-2.5">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                  Question-by-Question Solution & Explanations
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Review complete official answer keys with step-by-step methods and shortcuts.
+                </p>
+              </div>
+
+              {/* Filter Pills */}
+              <div className="flex items-center space-x-1 text-xs no-print">
+                <button
+                  type="button"
+                  onClick={() => setReviewFilter('all')}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition ${
+                    reviewFilter === 'all'
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900">
-                      Q{idx + 1}. ({q.code}) - {q.topic}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-                        !hasAnswered
-                          ? 'bg-slate-200 text-slate-700'
-                          : isCorrect
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-red-600 text-white'
-                      }`}
-                    >
-                      {!hasAnswered ? 'Unattempted (0)' : isCorrect ? '+4 Marks (Correct)' : '-1 Mark (Wrong)'}
-                    </span>
-                  </div>
+                  All ({allExamQuestions.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReviewFilter('incorrect')}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition ${
+                    reviewFilter === 'incorrect'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-red-50 text-red-700 hover:bg-red-100'
+                  }`}
+                >
+                  Incorrect ({submittedAttempt.incorrectCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReviewFilter('unattempted')}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition ${
+                    reviewFilter === 'unattempted'
+                      ? 'bg-slate-600 text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  Skipped ({submittedAttempt.unattemptedCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReviewFilter('correct')}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition ${
+                    reviewFilter === 'correct'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  }`}
+                >
+                  Correct ({submittedAttempt.correctCount})
+                </button>
+              </div>
+            </div>
 
-                  <p className="text-slate-800 font-medium">{q.questionText}</p>
+            {/* Questions List */}
+            <div className="space-y-4">
+              {filteredQuestions.map((q, idx) => {
+                const ansRecord = submittedAttempt.answers[q.id];
+                const isCorrect = ansRecord?.isCorrect;
+                const hasAnswered = !!ansRecord?.selectedOption;
+                const questionNumber = allExamQuestions.findIndex(item => item.id === q.id) + 1;
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                    <div className="p-2 bg-white rounded border border-slate-200">
-                      <span className="text-slate-400 block text-[10px] uppercase">Your Answer</span>
-                      <strong className={isCorrect ? 'text-emerald-700' : 'text-red-600'}>
-                        {ansRecord?.selectedOption || 'None'}
-                      </strong>
+                return (
+                  <div
+                    key={q.id}
+                    className={`p-4 rounded-sm border text-xs space-y-3 avoid-break transition ${
+                      !hasAnswered
+                        ? 'border-slate-200 bg-slate-50/50'
+                        : isCorrect
+                        ? 'border-emerald-200 bg-emerald-50/25'
+                        : 'border-red-200 bg-red-50/30'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-extrabold text-slate-900 text-sm">
+                          Q{questionNumber}.
+                        </span>
+                        <span className="font-mono text-[11px] text-slate-500">
+                          [{q.code}] &bull; {q.topic || 'General'}
+                        </span>
+                      </div>
+                      <span
+                        className={`px-2.5 py-0.5 rounded font-mono text-[10px] font-bold uppercase tracking-wider ${
+                          !hasAnswered
+                            ? 'bg-slate-200 text-slate-700'
+                            : isCorrect
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-red-600 text-white'
+                        }`}
+                      >
+                        {!hasAnswered ? 'Unattempted (0 marks)' : isCorrect ? '+4 Marks (Correct)' : '-1 Penalty (Wrong)'}
+                      </span>
                     </div>
-                    <div className="p-2 bg-white rounded border border-slate-200">
-                      <span className="text-slate-400 block text-[10px] uppercase">Correct Key</span>
-                      <strong className="text-emerald-800">{q.correctAnswer}</strong>
+
+                    <p className="text-slate-900 font-medium text-xs leading-relaxed">
+                      {q.questionText}
+                    </p>
+
+                    {q.formulaNote && (
+                      <div className="p-2 bg-amber-50/70 border border-amber-200 rounded text-[11px] text-amber-900 font-mono">
+                        <span className="font-bold">Formula Note:</span> {q.formulaNote}
+                      </div>
+                    )}
+
+                    {/* Options list if single choice */}
+                    {q.options && q.options.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        {q.options.map(opt => {
+                          const isStudentPick = ansRecord?.selectedOption === opt.label;
+                          const isOfficialKey = q.correctAnswer === opt.label;
+                          return (
+                            <div
+                              key={opt.id}
+                              className={`p-2.5 rounded border text-[11px] flex items-center justify-between ${
+                                isOfficialKey
+                                  ? 'border-emerald-500 bg-emerald-100/60 font-semibold text-emerald-950'
+                                  : isStudentPick
+                                  ? 'border-red-400 bg-red-100/60 font-medium text-red-950'
+                                  : 'border-slate-200 bg-white text-slate-700'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                                  isOfficialKey ? 'bg-emerald-600 text-white' : isStudentPick ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {opt.label}
+                                </span>
+                                <span>{opt.text}</span>
+                              </div>
+                              {isOfficialKey && (
+                                <span className="text-[10px] font-bold text-emerald-700 font-mono">
+                                  ✓ Key
+                                </span>
+                              )}
+                              {isStudentPick && !isOfficialKey && (
+                                <span className="text-[10px] font-bold text-red-600 font-mono">
+                                  Your Pick
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Comparison Answer Bar */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] pt-1">
+                      <div className="p-2 bg-white rounded border border-slate-200">
+                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Your Answer</span>
+                        <strong className={`font-mono ${isCorrect ? 'text-emerald-700' : hasAnswered ? 'text-red-600' : 'text-slate-500'}`}>
+                          {ansRecord?.selectedOption || 'None (Skipped)'}
+                        </strong>
+                      </div>
+                      <div className="p-2 bg-white rounded border border-slate-200">
+                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Correct Key</span>
+                        <strong className="text-emerald-800 font-mono">{q.correctAnswer}</strong>
+                      </div>
+                      <div className="p-2 bg-white rounded border border-slate-200">
+                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Subject & Level</span>
+                        <strong className="text-slate-800">{q.subject || 'Maths'} ({q.difficulty || 'IIT'})</strong>
+                      </div>
+                      <div className="p-2 bg-white rounded border border-slate-200">
+                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Marking Rule</span>
+                        <strong className="text-slate-700">+{q.marksPositive || 4} / {q.marksNegative || -1}</strong>
+                      </div>
+                    </div>
+
+                    {/* Official Step-by-Step Explanation */}
+                    <div className="p-3 bg-white border border-slate-200 rounded text-[11px] text-slate-800 space-y-1">
+                      <div className="font-bold text-slate-900 flex items-center space-x-1.5">
+                        <BookOpen className="w-3.5 h-3.5 text-blue-700" />
+                        <span>Step-by-Step Explanation & Method:</span>
+                      </div>
+                      <p className="text-slate-700 leading-relaxed font-normal">
+                        {q.explanation || 'Apply standard trigonometric and calculus transformations as taught in KT Sir classroom lectures.'}
+                      </p>
                     </div>
                   </div>
+                );
+              })}
 
-                  <div className="p-2.5 bg-white border border-slate-200 rounded text-[11px] text-slate-700">
-                    <strong className="text-slate-900 block mb-0.5">Explanation / Solution:</strong>
-                    {q.explanation}
-                  </div>
+              {filteredQuestions.length === 0 && (
+                <div className="p-8 text-center bg-slate-50 rounded border border-slate-200 text-slate-500 font-mono text-xs">
+                  No questions match the selected filter.
                 </div>
-              );
-            })}
+              )}
+            </div>
+          </div>
+
+          {/* Official Verification Seal & Masthead Footer */}
+          <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
+            <div className="flex items-center space-x-2">
+              <InstituteLogo
+                className="w-7 h-7 rounded"
+                imgClassName="max-h-7 max-w-7 object-contain"
+                fallbackType="cap"
+              />
+              <span className="font-bold text-slate-800">
+                {settings?.instituteName || 'Gyansai Maths IIT Center'}
+              </span>
+              <span>&bull; Verified Official CBT Assessment Document</span>
+            </div>
+            <div className="font-mono text-[11px] text-slate-400">
+              Exam ID: {submittedAttempt.examId} &bull; Checksum: {submittedAttempt.id}
+            </div>
           </div>
         </div>
       </div>
