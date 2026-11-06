@@ -258,9 +258,9 @@ const PortalMainContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex overflow-hidden font-sans">
+    <div className="min-h-screen bg-white flex flex-col md:flex-row overflow-x-hidden font-sans">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-white p-6 sm:p-8 lg:p-9">
+      <main className="flex-1 overflow-y-auto bg-white p-3.5 sm:p-6 lg:p-8 w-full max-w-full">
         <div className="max-w-7xl mx-auto">
           {portalMode === 'admin' ? renderAdminView() : renderStudentView()}
         </div>

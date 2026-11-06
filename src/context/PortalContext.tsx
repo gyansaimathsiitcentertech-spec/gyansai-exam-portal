@@ -147,7 +147,15 @@ interface PortalContextType {
   removeToast: (id: string) => void;
 
   startExamForStudent: (examId: string, studentOverride?: User) => void;
-  quickJoinAndStartExam: (name: string, phone: string, email: string, targetExam: string, examCodeOrId: string) => void;
+  quickJoinAndStartExam: (
+    name: string,
+    phone: string,
+    targetClassOrEmail: string,
+    collegeNameOrTargetExam?: string,
+    customRollNoOrExamCode?: string,
+    examCodeOrIdParam?: string,
+    optionalEmailParam?: string
+  ) => void;
   resetAllToDefault: () => void;
 }
 
@@ -334,7 +342,36 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const cleanCode = examParam.trim();
             const dynamicTitle = cleanCode.startsWith('GYAN-')
               ? `Gyansai Assessment (${cleanCode})`
-              : `${cleanCode.replace(/[-_]/g, ' ')}`;
+              : cleanCode.replace(/[-_]/g, ' ');
+            const titleLower = dynamicTitle.toLowerCase();
+            const relevantForDynamic = questions.filter(q => {
+              const qTopic = (q.topic || '').toLowerCase();
+              const qText = (q.questionText || '').toLowerCase();
+              const qSubject = (q.subject || '').toLowerCase();
+              if (qSubject !== 'mathematics') return false;
+
+              if (titleLower.includes('integration') || titleLower.includes('integral') || titleLower.includes('calculus')) {
+                return qTopic.includes('integration') || qTopic.includes('calculus') || qText.includes('integral') || qText.includes('dx');
+              }
+              if (titleLower.includes('trigonometry') || titleLower.includes('trig')) {
+                return qTopic.includes('trigonometry') || qText.includes('sin') || qText.includes('cos');
+              }
+              if (titleLower.includes('vector') || titleLower.includes('3d')) {
+                return qTopic.includes('vector') || qTopic.includes('3d');
+              }
+              if (titleLower.includes('diff') || titleLower.includes('derivat')) {
+                return qTopic.includes('diff') || qText.includes('dy/dx');
+              }
+              if (titleLower.includes('conic') || titleLower.includes('parabola') || titleLower.includes('ellipse')) {
+                return qTopic.includes('conic') || qTopic.includes('parabola') || qTopic.includes('ellipse');
+              }
+              return true;
+            });
+            const assignedQuestions = (relevantForDynamic.length > 0
+              ? relevantForDynamic
+              : questions.filter(q => (q.subject || '').toLowerCase() === 'mathematics')
+            ).slice(0, 10);
+
             const dynamicExam: Exam = {
               id: cleanCode,
               title: dynamicTitle,
@@ -343,7 +380,7 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               folderName: 'Assessment Series',
               batchIds: [],
               durationMinutes: 180,
-              totalMarks: 100,
+              totalMarks: assignedQuestions.length * 4 || 100,
               positiveMarks: 4,
               negativeMarks: -1,
               passPercentage: 40,
@@ -354,10 +391,11 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                   id: 'sec-1',
                   name: 'Mathematics Section',
                   subject: 'Mathematics',
-                  questionIds: questions.slice(0, 10).map(q => q.id),
+                  questionIds: assignedQuestions.map(q => q.id),
                   instructions: '+4 for correct answer, -1 for wrong response.'
                 }
               ],
+              questions: assignedQuestions,
               startTime: new Date().toISOString().slice(0, 16),
               endTime: new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString().slice(0, 16),
               status: 'Live',
@@ -717,23 +755,78 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setPortalMode('taking_exam');
   };
 
-  const quickJoinAndStartExam = (name: string, phone: string, email: string, targetExam: string, examCodeOrId: string) => {
-    // Look up or register student
-    let student = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  const quickJoinAndStartExam = (
+    name: string,
+    phone: string,
+    targetClassOrEmail: string,
+    collegeNameOrTargetExam?: string,
+    customRollNoOrExamCode?: string,
+    examCodeOrIdParam?: string,
+    optionalEmailParam?: string
+  ) => {
+    let targetClass = '11th';
+    let collegeName = '';
+    let customRollNo = '';
+    let examCodeOrId = '';
+    let email = '';
+
+    if (examCodeOrIdParam !== undefined) {
+      // Direct call: (name, phone, targetClass, collegeName, customRollNo, examCodeOrId, optionalEmail)
+      targetClass = targetClassOrEmail || '11th';
+      collegeName = collegeNameOrTargetExam || '';
+      customRollNo = customRollNoOrExamCode || '';
+      examCodeOrId = examCodeOrIdParam;
+      email = optionalEmailParam || `${phone.replace(/\D/g, '') || Date.now()}@quickjoin.gyansai.com`;
+    } else {
+      // Legacy call: (name, phone, email, targetExam, examCodeOrId)
+      email = targetClassOrEmail;
+      targetClass = collegeNameOrTargetExam || '11th';
+      examCodeOrId = customRollNoOrExamCode || '';
+      collegeName = '';
+    }
+
+    const assignedRollNo = customRollNo.trim() || `GMI-QJ-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    let student = users.find(u =>
+      (email && u.email.toLowerCase() === email.toLowerCase()) ||
+      (phone && u.phone === phone)
+    );
+
     if (!student) {
       student = addUser({
         name,
-        email,
+        email: email || `${phone.replace(/\D/g, '') || Date.now()}@quickjoin.gyansai.com`,
         phone,
         role: 'student',
-        rollNo: `GMI-GUEST-${Math.floor(1000 + Math.random() * 9000)}`,
-        targetExam,
-        batchName: 'Open Mock Aspirant'
+        rollNo: assignedRollNo,
+        targetExam: targetClass.startsWith('Class') ? targetClass : `Class ${targetClass}`,
+        collegeName: collegeName.trim(),
+        batchName: 'Quick Join Candidate'
       });
+    } else {
+      const updatedData: Partial<User> = {
+        name,
+        phone,
+        collegeName: collegeName.trim() || student.collegeName,
+        targetExam: targetClass.startsWith('Class') ? targetClass : `Class ${targetClass}`
+      };
+      if (customRollNo.trim()) {
+        updatedData.rollNo = customRollNo.trim();
+      }
+      student = { ...student, ...updatedData };
+      updateUser(student.id, updatedData);
     }
 
-    const targetExamObj = exams.find(e => e.id === examCodeOrId || e.code.toLowerCase() === examCodeOrId.toLowerCase()) || exams[0];
-    
+    // Locate the exact target exam from code or ID
+    const targetExamObj = exams.find(e =>
+      e.id === examCodeOrId ||
+      e.code.toLowerCase() === examCodeOrId.toLowerCase() ||
+      (activeExamIdForShare && (
+        e.id.toLowerCase() === activeExamIdForShare.toLowerCase() ||
+        e.code.toLowerCase() === activeExamIdForShare.toLowerCase()
+      ))
+    ) || exams[0];
+
     setCurrentUser(student);
     setQuickJoinModalOpen(false);
     startExamForStudent(targetExamObj.id, student);

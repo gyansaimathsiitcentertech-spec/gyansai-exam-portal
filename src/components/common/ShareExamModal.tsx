@@ -24,6 +24,9 @@ export const ShareExamModal: React.FC = () => {
 
   const relevantQuestions = useMemo(() => {
     if (!currentExam) return [];
+    if (currentExam.questions && currentExam.questions.length > 0) {
+      return currentExam.questions;
+    }
     const qIds = currentExam.sections?.flatMap(s => s.questionIds) || [];
     return questions.filter(q => qIds.includes(q.id));
   }, [currentExam, questions]);

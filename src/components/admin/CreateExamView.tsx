@@ -81,9 +81,13 @@ export const CreateExamView: React.FC = () => {
       }
     ];
 
-    const shareUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/exam/${code.trim()}`
-      : `https://gyansai-exam-portal.vercel.app/exam/${code.trim()}`;
+    const selectedQuestionObjects = questions.filter(q => selectedQuestionIds.includes(q.id));
+
+    const origin = typeof window !== 'undefined'
+      ? window.location.origin
+      : 'https://gyansai-exam-portal.vercel.app';
+    const examSlug = code.trim().replace(/[^a-zA-Z0-9_-]/g, '-');
+    const shareUrl = `${origin}/exam/${examSlug}`;
 
     const createdExam = addExam({
       title: title.trim(),
@@ -96,6 +100,7 @@ export const CreateExamView: React.FC = () => {
       positiveMarks: Number(positiveMarks),
       negativeMarks: Number(negativeMarks),
       sections,
+      questions: selectedQuestionObjects,
       startTime: new Date().toISOString().slice(0, 16),
       endTime: new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString().slice(0, 16),
       status: 'Live',

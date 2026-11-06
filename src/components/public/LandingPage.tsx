@@ -16,7 +16,9 @@ import {
   Mail,
   MapPin,
   Clock,
-  Users
+  Users,
+  Menu,
+  X
 } from 'lucide-react';
 import { InstituteLogo } from '../common/InstituteLogo';
 
@@ -36,6 +38,7 @@ export const LandingPage: React.FC = () => {
   } = usePortal();
 
   const [showAdmissionsModal, setShowAdmissionsModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleStartMock = () => {
     if (exams.length > 0) {
@@ -63,66 +66,159 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col selection:bg-blue-100">
-      {/* Top Navigation Bar - Exact replica of Screenshot 459 / 460 */}
+      {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-18 sm:h-20 flex items-center justify-between">
           {/* Left: Institute Logo & Name */}
           <div
-            onClick={() => setPortalMode('landing')}
-            className="flex items-center space-x-3 cursor-pointer select-none"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              setPortalMode('landing');
+            }}
+            className="flex items-center space-x-2.5 sm:space-x-3 cursor-pointer select-none truncate"
           >
             {/* Dynamic Institute Logo */}
             <InstituteLogo
-              className="w-11 h-11"
-              imgClassName="max-h-11 max-w-11 object-contain rounded"
+              className="w-9 h-9 sm:w-11 sm:h-11 shrink-0"
+              imgClassName="max-h-9 max-w-9 sm:max-h-11 sm:max-w-11 object-contain rounded"
               fallbackType="emblem"
             />
-            <div>
-              <div className="font-bold text-base text-gray-900 tracking-tight leading-none">
+            <div className="truncate">
+              <div className="font-bold text-sm sm:text-base text-gray-900 tracking-tight leading-none truncate">
                 {settings?.instituteName || 'Gyansai Maths IIT Center'}
               </div>
-              <div className="text-[10px] text-gray-500 font-mono tracking-[0.25em] uppercase mt-1 leading-none">
+              <div className="text-[9px] sm:text-[10px] text-gray-500 font-mono tracking-[0.2em] sm:tracking-[0.25em] uppercase mt-1 leading-none">
                 {settings?.storageTag || 'STORAGE'}
               </div>
             </div>
           </div>
 
-          {/* Center Links */}
-          <nav className="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-700">
+          {/* Center Links (Desktop only) */}
+          <nav className="hidden md:flex items-center space-x-6 lg:space-x-8 text-sm font-medium text-gray-700">
             <a href="#features" className="hover:text-blue-700 transition">Features</a>
             <a href="#featured-courses-section" className="hover:text-blue-700 transition">Courses</a>
             <a href="#test-series-section" className="hover:text-blue-700 transition">Test Series</a>
             <a href="#contact-section" className="hover:text-blue-700 transition">Contact</a>
           </nav>
 
-          {/* Right Action Buttons */}
-          <div className="flex items-center space-x-3 text-sm">
+          {/* Right Action Buttons (Desktop) */}
+          <div className="hidden sm:flex items-center space-x-2 sm:space-x-3 text-sm">
             <button
               type="button"
               onClick={() => {
                 setAuthModalTab('signup');
                 setPortalMode('login');
               }}
-              className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium cursor-pointer"
+              className="px-3.5 py-2 text-gray-700 hover:text-gray-900 font-medium cursor-pointer"
             >
               Sign Up
             </button>
             <button
               type="button"
               onClick={() => handleOpenLogin('student')}
-              className="px-4 py-2 border border-gray-300 rounded text-gray-800 hover:bg-gray-50 font-medium cursor-pointer"
+              className="px-3.5 py-2 border border-gray-300 rounded text-gray-800 hover:bg-gray-50 font-medium cursor-pointer"
             >
               Login
             </button>
             <button
               type="button"
               onClick={() => handleOpenLogin('admin')}
-              className="px-5 py-2 bg-[#002FA7] hover:bg-blue-800 text-white font-semibold rounded cursor-pointer transition shadow-2xs"
+              className="px-4 py-2 bg-[#002FA7] hover:bg-blue-800 text-white font-semibold rounded cursor-pointer transition shadow-2xs"
             >
               Admin
             </button>
           </div>
+
+          {/* Mobile Right Controls: Fast Login + Hamburger Toggle */}
+          <div className="flex sm:hidden items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => handleOpenLogin('student')}
+              className="px-3 py-1.5 bg-[#002FA7] text-white text-xs font-semibold rounded"
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              className="p-1.5 border border-gray-200 rounded text-gray-700 hover:bg-gray-100"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5 text-gray-900" /> : <Menu className="w-5 h-5 text-gray-900" />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Dropdown Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden border-t border-gray-200 bg-white px-5 py-4 space-y-3.5 shadow-lg animate-in slide-in-from-top-2 duration-150">
+            <nav className="flex flex-col space-y-2.5 text-sm font-semibold text-gray-800">
+              <a
+                href="#features"
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-1 hover:text-blue-700"
+              >
+                Features
+              </a>
+              <a
+                href="#featured-courses-section"
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-1 hover:text-blue-700"
+              >
+                Courses & Batches
+              </a>
+              <a
+                href="#test-series-section"
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-1 hover:text-blue-700"
+              >
+                Test Series & DPPs
+              </a>
+              <a
+                href="#contact-section"
+                onClick={() => setMobileMenuOpen(false)}
+                className="py-1 hover:text-blue-700"
+              >
+                Contact & Address
+              </a>
+            </nav>
+
+            <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleOpenLogin('student');
+                }}
+                className="py-2.5 bg-blue-50 border border-blue-200 text-[#002FA7] font-bold rounded text-center"
+              >
+                Student Login
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setAuthModalTab('signup');
+                  setPortalMode('login');
+                }}
+                className="py-2.5 bg-white border border-gray-300 text-gray-800 font-semibold rounded text-center"
+              >
+                Sign Up
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleOpenLogin('admin');
+              }}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded text-center"
+            >
+              Faculty / Admin Console →
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Hero Section - Exact replica of Screenshot 459 */}

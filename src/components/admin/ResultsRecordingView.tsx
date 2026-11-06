@@ -307,8 +307,19 @@ export const ResultsRecordingView: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {filtered.map((att: any) => (
                 <tr key={att.id} className="hover:bg-gray-50/60 transition">
-                  <td className="px-5 py-3.5 font-medium text-gray-900">
-                    {att.studentName}
+                  <td className="px-5 py-3.5 text-gray-900">
+                    <div className="flex items-center space-x-1.5 font-medium">
+                      <span>{att.studentName}</span>
+                      {att.isQuickJoin && (
+                        <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-mono font-bold rounded">
+                          QUICK JOIN
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-gray-500 font-normal mt-0.5">
+                      {att.studentCollege ? `${att.studentCollege} · ` : ''}{att.studentRollNo || 'GMI-QJ'}
+                      {att.studentPhone ? ` · 📞 ${att.studentPhone}` : ''}
+                    </div>
                   </td>
                   <td className="px-5 py-3.5 font-mono text-gray-700">
                     {att.examTitle || att.examCode || 'JEE'}

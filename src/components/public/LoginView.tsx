@@ -56,7 +56,7 @@ export const LoginView: React.FC = () => {
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#080B10] text-white font-sans">
       {/* Left Column: Command Center Branding with Subtle Dark Grid (Exact Screenshot 464) */}
-      <div className="w-full md:w-1/2 p-8 sm:p-14 lg:p-16 flex flex-col justify-between relative overflow-hidden border-b md:border-b-0 md:border-r border-neutral-800 bg-[#07090E]">
+      <div className="w-full md:w-1/2 p-6 sm:p-10 lg:p-16 flex flex-col justify-between relative overflow-hidden border-b md:border-b-0 md:border-r border-neutral-800 bg-[#07090E]">
         {/* Subtle grid background pattern */}
         <div
           className="absolute inset-0 opacity-15 pointer-events-none"
@@ -69,8 +69,8 @@ export const LoginView: React.FC = () => {
         {/* Top-left: Dynamic Logo */}
         <div className="relative z-10 flex items-center space-x-3 select-none">
           <InstituteLogo
-            className="w-10 h-10 border border-neutral-700 shadow-xs"
-            imgClassName="max-h-10 max-w-10 object-contain rounded"
+            className="w-9 h-9 sm:w-10 sm:h-10 border border-neutral-700 shadow-xs"
+            imgClassName="max-h-9 max-w-9 sm:max-h-10 sm:max-w-10 object-contain rounded"
             fallbackType="emblem"
           />
           <div>
@@ -84,26 +84,26 @@ export const LoginView: React.FC = () => {
         </div>
 
         {/* Center: Command Center Tagline */}
-        <div className="relative z-10 my-16 md:my-0 space-y-4 max-w-lg">
+        <div className="relative z-10 my-6 sm:my-10 md:my-0 space-y-3 sm:space-y-4 max-w-lg">
           <div className="text-xs font-mono font-bold tracking-widest text-blue-500 uppercase">
             // EXCELLENCE ENGINEERED
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
             Sign in to your exam command center.
           </h1>
-          <p className="text-sm text-neutral-400 leading-relaxed font-normal">
+          <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed font-normal">
             Live proctoring · Tab-switch detection · AI question import · All-India ranking — all from one secure portal.
           </p>
         </div>
 
         {/* Bottom-left: Copyright */}
-        <div className="relative z-10 text-xs font-mono text-neutral-500">
+        <div className="relative z-10 text-xs font-mono text-neutral-500 hidden sm:block">
           © 2026 Gyansai · All rights reserved
         </div>
       </div>
 
       {/* Right Column: White Clean Login Form (Exact Screenshot 464) */}
-      <div className="w-full md:w-1/2 bg-white text-slate-900 p-8 sm:p-14 lg:p-20 flex flex-col justify-center items-center">
+      <div className="w-full md:w-1/2 bg-white text-slate-900 p-6 sm:p-10 lg:p-20 flex flex-col justify-center items-center">
         <div className="max-w-md w-full space-y-8">
           <div>
             <div className="text-xs font-mono font-medium tracking-widest text-gray-500 uppercase mb-2">

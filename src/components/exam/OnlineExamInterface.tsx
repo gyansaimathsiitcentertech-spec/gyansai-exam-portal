@@ -25,11 +25,13 @@ import {
   Filter,
   Flame,
   BookOpen,
-  FileDown
+  FileDown,
+  X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Question, StudentAnswer, ExamAttempt } from '../../types';
 import { InstituteLogo } from '../common/InstituteLogo';
+import { MathText } from '../../utils/mathRenderer';
 
 export const OnlineExamInterface: React.FC = () => {
   const {
@@ -44,37 +46,122 @@ export const OnlineExamInterface: React.FC = () => {
     setSelectedAttemptForResult
   } = usePortal();
 
-  const exam = exams.find(
-    e => e.id === activeExamIdForCBT ||
-         (activeExamIdForCBT && e.code.toLowerCase() === activeExamIdForCBT.toLowerCase())
-  ) || exams[0];
+  const exam = useMemo(() => {
+    return exams.find(
+      e => e.id === activeExamIdForCBT ||
+           (activeExamIdForCBT && e.code.toLowerCase() === activeExamIdForCBT.toLowerCase())
+    ) || exams[0];
+  }, [exams, activeExamIdForCBT]);
 
   // Flatten questions according to sections
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const currentSection = exam?.sections[currentSectionIndex] || exam?.sections[0];
 
-  // Map of all questions in current exam with robust fallback
-  const allExamQuestionIds = (exam && exam.sections && exam.sections.length > 0)
-    ? exam.sections.flatMap(s => s.questionIds)
-    : [];
-  const matched = allExamQuestionIds
-    .map(id => questions.find(q => q.id === id))
-    .filter(Boolean) as Question[];
-  const allExamQuestions: Question[] = matched.length > 0
-    ? matched
-    : (exam?.questions && exam.questions.length > 0)
-      ? exam.questions
-      : questions;
+  // Strictly exam-specific questions: NEVER dump all questions from the question bank
+  const allExamQuestions: Question[] = useMemo(() => {
+    if (!exam) return [];
+
+    // Priority 1: Questions explicitly saved on the exam object
+    if (exam.questions && Array.isArray(exam.questions) && exam.questions.length > 0) {
+      return exam.questions as Question[];
+    }
+
+    // Priority 2: Questions referenced by the exam's sections
+    const sectionQuestionIds = (exam.sections && exam.sections.length > 0)
+      ? exam.sections.flatMap(s => s.questionIds || [])
+      : [];
+
+    if (sectionQuestionIds.length > 0) {
+      const matched = sectionQuestionIds
+        .map(id => questions.find(q => q.id === id))
+        .filter(Boolean) as Question[];
+      if (matched.length > 0) {
+        return matched;
+      }
+    }
+
+    // Priority 3: Filter strictly by exam title & topic keywords
+    // Never show unrelated questions from the whole bank!
+    const titleLower = (exam.title || '').toLowerCase();
+
+    const topicFiltered = questions.filter(q => {
+      const qTopic = (q.topic || '').toLowerCase();
+      const qText = (q.questionText || '').toLowerCase();
+      const qSubject = (q.subject || '').toLowerCase();
+
+      // Must match subject
+      if (qSubject !== 'mathematics' && !titleLower.includes('science') && !titleLower.includes('physics')) {
+        return false;
+      }
+
+      if (titleLower.includes('integration') || titleLower.includes('integral') || titleLower.includes('calculus')) {
+        return qTopic.includes('integration') || qTopic.includes('calculus') || qText.includes('integral') || qText.includes('dx');
+      }
+      if (titleLower.includes('trigonometry') || titleLower.includes('trig')) {
+        return qTopic.includes('trigonometry') || qText.includes('sin') || qText.includes('cos') || qText.includes('tan');
+      }
+      if (titleLower.includes('vector') || titleLower.includes('3d')) {
+        return qTopic.includes('vector') || qTopic.includes('3d') || qText.includes('coplanar');
+      }
+      if (titleLower.includes('diff') || titleLower.includes('derivat')) {
+        return qTopic.includes('diff') || qText.includes('dy/dx');
+      }
+      if (titleLower.includes('conic') || titleLower.includes('parabola') || titleLower.includes('ellipse')) {
+        return qTopic.includes('conic') || qTopic.includes('parabola') || qTopic.includes('ellipse');
+      }
+
+      if (exam.targetClass === '11th' && q.tag?.includes('11th')) return true;
+      if (exam.targetClass === '12th' && q.tag?.includes('12th')) return true;
+
+      return false;
+    });
+
+    if (topicFiltered.length > 0) {
+      return topicFiltered.slice(0, 10);
+    }
+
+    // Strict Fallback: only Mathematics questions, never the whole question bank
+    const mathOnly = questions.filter(q => (q.subject || '').toLowerCase() === 'mathematics');
+    return mathOnly.slice(0, 10);
+  }, [exam, questions]);
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const currentQuestion: Question | undefined = allExamQuestions[currentQuestionIndex];
 
-  // Timer: remaining seconds
-  const [timeRemaining, setTimeRemaining] = useState<number>(() => (exam?.durationMinutes || 180) * 60);
+  // Storage keys for preserving session across refreshes
+  const timerStorageKey = `cbt_exam_start_${exam?.id || 'exam'}_${currentUser?.id || 'guest'}`;
+  const answersStorageKey = `cbt_exam_answers_${exam?.id || 'exam'}_${currentUser?.id || 'guest'}`;
 
-  // Candidate answers state
-  // key: questionId -> StudentAnswer
+  // Timer: remaining seconds preserved across browser refresh
+  const [timeRemaining, setTimeRemaining] = useState<number>(() => {
+    const totalSecs = (exam?.durationMinutes || 180) * 60;
+    try {
+      const savedStart = localStorage.getItem(timerStorageKey);
+      if (savedStart) {
+        const elapsed = Math.floor((Date.now() - parseInt(savedStart, 10)) / 1000);
+        if (elapsed >= totalSecs) return 0;
+        return Math.max(1, totalSecs - elapsed);
+      } else {
+        localStorage.setItem(timerStorageKey, Date.now().toString());
+        return totalSecs;
+      }
+    } catch {
+      return totalSecs;
+    }
+  });
+
+  // Candidate answers state preserved in localStorage
   const [candidateAnswers, setCandidateAnswers] = useState<Record<string, StudentAnswer>>(() => {
+    try {
+      const saved = localStorage.getItem(answersStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+
     const initial: Record<string, StudentAnswer> = {};
     allExamQuestions.forEach((q, idx) => {
       initial[q.id] = {
@@ -87,9 +174,17 @@ export const OnlineExamInterface: React.FC = () => {
     return initial;
   });
 
+  // Automatically sync candidate answers to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(answersStorageKey, JSON.stringify(candidateAnswers));
+    } catch {}
+  }, [candidateAnswers, answersStorageKey]);
+
   const [confirmSubmitModalOpen, setConfirmSubmitModalOpen] = useState(false);
   const [submittedAttempt, setSubmittedAttempt] = useState<ExamAttempt | null>(null);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'incorrect' | 'unattempted' | 'correct'>('all');
+  const [mobilePaletteOpen, setMobilePaletteOpen] = useState(false);
 
   // Timer countdown
   useEffect(() => {
@@ -285,6 +380,9 @@ export const OnlineExamInterface: React.FC = () => {
       studentName: currentUser.name,
       studentRollNo: currentUser.rollNo || 'GMI-ONLINE',
       studentEmail: currentUser.email,
+      studentCollege: currentUser.collegeName || 'Open Candidate',
+      studentPhone: currentUser.phone || '',
+      isQuickJoin: currentUser.batchName?.includes('Quick Join') || !currentUser.batchId,
       answers: evaluatedAnswers,
       totalScore: calculatedScore,
       maxScore,
@@ -300,6 +398,12 @@ export const OnlineExamInterface: React.FC = () => {
       timeTakenMinutes: Math.round((exam.durationMinutes * 60 - timeRemaining) / 60) || 1,
       status: 'Evaluated'
     });
+
+    // Clear saved CBT session so subsequent attempts start fresh
+    try {
+      localStorage.removeItem(timerStorageKey);
+      localStorage.removeItem(answersStorageKey);
+    } catch {}
 
     setConfirmSubmitModalOpen(false);
     setSubmittedAttempt(newAttempt);
@@ -823,13 +927,13 @@ export const OnlineExamInterface: React.FC = () => {
                       </span>
                     </div>
 
-                    <p className="text-slate-900 font-medium text-xs leading-relaxed">
-                      {q.questionText}
-                    </p>
+                    <div className="text-slate-900 font-medium text-xs leading-relaxed">
+                      <MathText text={q.questionText} />
+                    </div>
 
                     {q.formulaNote && (
                       <div className="p-2 bg-amber-50/70 border border-amber-200 rounded text-[11px] text-amber-900 font-mono">
-                        <span className="font-bold">Formula Note:</span> {q.formulaNote}
+                        <span className="font-bold">Formula Note:</span> <MathText text={q.formulaNote} />
                       </div>
                     )}
 
@@ -851,12 +955,12 @@ export const OnlineExamInterface: React.FC = () => {
                               }`}
                             >
                               <div className="flex items-center space-x-2">
-                                <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${
                                   isOfficialKey ? 'bg-emerald-600 text-white' : isStudentPick ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-700'
                                 }`}>
                                   {opt.label}
                                 </span>
-                                <span>{opt.text}</span>
+                                <span><MathText text={opt.text} /></span>
                               </div>
                               {isOfficialKey && (
                                 <span className="text-[10px] font-bold text-emerald-700 font-mono">
@@ -902,9 +1006,9 @@ export const OnlineExamInterface: React.FC = () => {
                         <BookOpen className="w-3.5 h-3.5 text-blue-700" />
                         <span>Step-by-Step Explanation & Method:</span>
                       </div>
-                      <p className="text-slate-700 leading-relaxed font-normal">
-                        {q.explanation || 'Apply standard trigonometric and calculus transformations as taught in KT Sir classroom lectures.'}
-                      </p>
+                      <div className="text-slate-700 leading-relaxed font-normal">
+                        <MathText text={q.explanation || 'Apply standard trigonometric and calculus transformations as taught in KT Sir classroom lectures.'} />
+                      </div>
                     </div>
                   </div>
                 );
@@ -1015,9 +1119,26 @@ export const OnlineExamInterface: React.FC = () => {
           ))}
         </div>
 
-        <div className="text-[11px] text-slate-600 font-semibold hidden lg:block">
-          Marking Scheme: <strong className="text-emerald-700">+{exam.positiveMarks}</strong>,{' '}
-          <strong className="text-red-600">{exam.negativeMarks}</strong>
+        <div className="flex items-center space-x-2 shrink-0 ml-2">
+          <div className="text-[11px] text-slate-600 font-semibold hidden lg:block">
+            Marking Scheme: <strong className="text-emerald-700">+{exam.positiveMarks}</strong>,{' '}
+            <strong className="text-red-600">{exam.negativeMarks}</strong>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobilePaletteOpen(true)}
+            className="lg:hidden px-2.5 py-1 bg-white border border-slate-300 rounded font-bold text-[11px] text-[#1E3A8A] flex items-center space-x-1 shadow-2xs active:scale-95 transition cursor-pointer"
+          >
+            <span>Palette ({answeredCount}/{allExamQuestions.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmSubmitModalOpen(true)}
+            className="lg:hidden px-2.5 py-1 bg-emerald-600 text-white rounded font-bold text-[11px] flex items-center space-x-1 shadow-2xs active:scale-95 transition cursor-pointer"
+          >
+            <Send className="w-3 h-3" />
+            <span>Submit</span>
+          </button>
         </div>
       </div>
 
@@ -1047,7 +1168,7 @@ export const OnlineExamInterface: React.FC = () => {
 
                 {/* Question Text */}
                 <div className="text-sm sm:text-base font-medium text-slate-800 leading-relaxed py-2">
-                  {currentQuestion.questionText}
+                  <MathText text={currentQuestion.questionText} />
                 </div>
 
                 {currentQuestion.imageUrl && (
@@ -1055,6 +1176,9 @@ export const OnlineExamInterface: React.FC = () => {
                     <img
                       src={currentQuestion.imageUrl}
                       alt="Question diagram"
+                      onError={e => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                      }}
                       className="max-h-64 max-w-full rounded border border-slate-300 bg-white p-1 object-contain"
                     />
                   </div>
@@ -1062,7 +1186,7 @@ export const OnlineExamInterface: React.FC = () => {
 
                 {currentQuestion.formulaNote && (
                   <div className="p-3 bg-amber-50/70 border border-amber-200 rounded text-xs text-amber-900 font-mono">
-                    <strong>Reference Property:</strong> {currentQuestion.formulaNote}
+                    <strong>Reference Property:</strong> <MathText text={currentQuestion.formulaNote} />
                   </div>
                 )}
 
@@ -1095,7 +1219,7 @@ export const OnlineExamInterface: React.FC = () => {
                           }`}
                         >
                           <span
-                            className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
+                            className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
                               isSelected
                                 ? 'bg-[#1E3A8A] text-white'
                                 : 'bg-slate-100 text-slate-600 border border-slate-300'
@@ -1103,7 +1227,9 @@ export const OnlineExamInterface: React.FC = () => {
                           >
                             {opt.label}
                           </span>
-                          <span className="flex-1">{opt.text}</span>
+                          <span className="flex-1">
+                            <MathText text={opt.text} />
+                          </span>
                         </div>
                       );
                     })}
@@ -1156,8 +1282,8 @@ export const OnlineExamInterface: React.FC = () => {
           )}
         </div>
 
-        {/* Right: Question Palette & Candidate Legend */}
-        <div className="w-full lg:w-72 bg-slate-50 p-4 border-t lg:border-t-0 flex flex-col justify-between shrink-0 space-y-4 text-xs">
+        {/* Right: Question Palette & Candidate Legend (Desktop) */}
+        <div className="hidden lg:flex w-72 bg-slate-50 p-4 border-l border-slate-200 flex-col justify-between shrink-0 space-y-4 text-xs">
           {/* Candidate Card */}
           <div className="bg-white p-3 rounded border border-slate-200 shadow-2xs flex items-center space-x-3">
             {currentUser.avatar ? (
@@ -1261,6 +1387,101 @@ export const OnlineExamInterface: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* MOBILE QUESTION PALETTE BOTTOM DRAWER */}
+      {mobilePaletteOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-2xs transition-opacity"
+            onClick={() => setMobilePaletteOpen(false)}
+          />
+          <div className="relative bg-white rounded-t-2xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200 text-xs">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="font-extrabold text-sm text-slate-900">
+                Question Palette ({answeredCount}/{allExamQuestions.length} Answered)
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobilePaletteOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Mobile Palette Legend */}
+            <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2.5 rounded border border-slate-200">
+              <div className="flex items-center space-x-1.5">
+                <span className="w-4 h-4 rounded bg-emerald-600 text-white flex items-center justify-center text-[9px] font-bold">
+                  {answeredCount}
+                </span>
+                <span className="text-slate-600">Answered</span>
+              </div>
+              <div className="flex items-center space-x-1.5">
+                <span className="w-4 h-4 rounded bg-red-600 text-white flex items-center justify-center text-[9px] font-bold">
+                  {notAnsweredCount}
+                </span>
+                <span className="text-slate-600">Not Answered</span>
+              </div>
+              <div className="flex items-center space-x-1.5">
+                <span className="w-4 h-4 rounded bg-purple-600 text-white flex items-center justify-center text-[9px] font-bold">
+                  {markedReviewCount}
+                </span>
+                <span className="text-slate-600">Marked Review</span>
+              </div>
+              <div className="flex items-center space-x-1.5">
+                <span className="w-4 h-4 rounded bg-slate-200 text-slate-700 flex items-center justify-center text-[9px] font-bold">
+                  {notVisitedCount}
+                </span>
+                <span className="text-slate-600">Not Visited</span>
+              </div>
+            </div>
+
+            {/* Grid */}
+            <div className="grid grid-cols-5 sm:grid-cols-8 gap-2 py-2">
+              {allExamQuestions.map((q, idx) => {
+                const ans = candidateAnswers[q.id];
+                const status = ans?.status || 'not_visited';
+                const isCurrent = currentQuestionIndex === idx;
+
+                let btnClass = 'bg-slate-100 text-slate-600 hover:bg-slate-200';
+                if (status === 'answered') btnClass = 'bg-emerald-600 text-white';
+                else if (status === 'not_answered') btnClass = 'bg-red-600 text-white';
+                else if (status === 'marked_for_review') btnClass = 'bg-purple-600 text-white';
+                else if (status === 'answered_and_marked') btnClass = 'bg-purple-700 text-white ring-2 ring-emerald-400';
+
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => {
+                      handleJumpToQuestion(idx);
+                      setMobilePaletteOpen(false);
+                    }}
+                    className={`h-9 rounded font-bold text-xs flex items-center justify-center cursor-pointer transition ${btnClass} ${
+                      isCurrent ? 'ring-2 ring-blue-500 font-extrabold scale-105' : ''
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMobilePaletteOpen(false);
+                setConfirmSubmitModalOpen(true);
+              }}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center justify-center space-x-1.5 cursor-pointer shadow-xs transition"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Submit Entire Examination</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* CONFIRMATION MODAL */}
       {confirmSubmitModalOpen && (

@@ -11,6 +11,7 @@ export interface User {
   batchId?: string;
   batchName?: string;
   targetExam?: string; // 'JEE Main & Advanced 2025' | 'MHT-CET 2025' | etc.
+  collegeName?: string;
   avatar?: string;
   joinedDate?: string;
 }
@@ -149,6 +150,9 @@ export interface ExamAttempt {
   tabSwitches?: string;
   snapshots?: number;
   violations?: { time: string; text: string }[];
+  studentCollege?: string;
+  studentPhone?: string;
+  isQuickJoin?: boolean;
 }
 
 export interface AttendanceRecord {
