@@ -87,7 +87,7 @@ export const CreateExamView: React.FC = () => {
       ? window.location.origin
       : 'https://gyansai-exam-portal.vercel.app';
     const examSlug = code.trim().replace(/[^a-zA-Z0-9_-]/g, '-');
-    const shareUrl = `${origin}/exam/${examSlug}`;
+    const shareUrl = `${origin}/?exam=${examSlug}`;
 
     const createdExam = addExam({
       title: title.trim(),
@@ -187,7 +187,7 @@ export const CreateExamView: React.FC = () => {
               />
               <div className="mt-1 flex items-center space-x-1 text-[10px] text-slate-500 font-mono truncate">
                 <LinkIcon className="w-2.5 h-2.5 text-blue-600 shrink-0" />
-                <span className="truncate">/exam/{code.trim() || 'CODE'}</span>
+                <span className="truncate">/?exam={code.trim() || 'CODE'}</span>
               </div>
             </div>
           </div>

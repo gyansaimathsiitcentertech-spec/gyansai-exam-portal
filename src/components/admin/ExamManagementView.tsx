@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { usePortal } from '../../context/PortalContext';
 import {
-  FolderPlus,
   Plus,
-  Folder,
   Users,
   Edit2,
   Share2,
@@ -11,15 +9,14 @@ import {
   BarChart3,
   Trash2,
   X,
-  Play
+  Play,
+  Search
 } from 'lucide-react';
 import { Exam } from '../../types';
 
 export const ExamManagementView: React.FC = () => {
   const {
     exams,
-    folders,
-    setCreateFolderModalOpen,
     setActiveAdminTab,
     setActiveExamIdForShare,
     deleteExam,
@@ -29,14 +26,21 @@ export const ExamManagementView: React.FC = () => {
     showToast
   } = usePortal();
 
-  const [activeFolderTab, setActiveFolderTab] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Live' | 'Draft'>('All');
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
 
-  // Filter exams based on folder tab
+  // Filter exams based on search and status
   const filteredExams = exams.filter(e => {
-    if (activeFolderTab === 'All') return true;
-    return (e.folderName || '').toLowerCase().includes(activeFolderTab.toLowerCase()) ||
-           (e.title || '').toLowerCase().includes(activeFolderTab.toLowerCase());
+    const matchesSearch = (e.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (e.code || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const isLive = e.status === 'Live' || e.status === 'Active' || e.status === 'Published';
+    const matchesStatus = statusFilter === 'All'
+      ? true
+      : statusFilter === 'Live'
+      ? isLive
+      : !isLive;
+    return matchesSearch && matchesStatus;
   });
 
   const liveCount = exams.filter(e => e.status === 'Live' || e.status === 'Active' || e.status === 'Published').length;
@@ -93,7 +97,7 @@ export const ExamManagementView: React.FC = () => {
 
   return (
     <div className="space-y-6 font-sans text-xs">
-      {/* Top Header - Exact Screenshot 486 */}
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="text-xs font-mono font-medium tracking-widest text-gray-400 uppercase mb-1">
@@ -107,17 +111,8 @@ export const ExamManagementView: React.FC = () => {
           </p>
         </div>
 
-        {/* Action Buttons Top Right */}
+        {/* Action Button Top Right */}
         <div className="flex items-center space-x-2">
-          <button
-            type="button"
-            onClick={() => setCreateFolderModalOpen(true)}
-            className="px-3.5 py-2 bg-white border border-gray-300 rounded text-xs font-medium text-gray-800 hover:bg-gray-50 flex items-center space-x-1.5 cursor-pointer shadow-2xs"
-          >
-            <FolderPlus className="w-3.5 h-3.5 text-gray-700" />
-            <span>Create Exam Folder</span>
-          </button>
-
           <button
             type="button"
             onClick={() => setActiveAdminTab('Create Exam')}
@@ -129,41 +124,35 @@ export const ExamManagementView: React.FC = () => {
         </div>
       </div>
 
-      {/* Folder Tabs - Exact Screenshot 486 */}
-      <div className="flex items-center space-x-2 border-b border-gray-200 pb-2 overflow-x-auto">
-        <button
-          type="button"
-          onClick={() => setActiveFolderTab('All')}
-          className={`flex items-center space-x-2 px-3 py-1.5 rounded text-xs font-medium cursor-pointer transition ${
-            activeFolderTab === 'All'
-              ? 'bg-amber-50/80 border border-amber-300 text-gray-900 font-bold'
-              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-          }`}
-        >
-          <Folder className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
-          <span>All Folders</span>
-          <span className="text-[11px] text-gray-500 font-mono">({exams.length})</span>
-        </button>
+      {/* Clean Search & Status Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3">
+        <div className="relative max-w-sm w-full">
+          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            placeholder="Search exams by title or code..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-300 rounded text-xs text-gray-900 focus:outline-none focus:border-[#002FA7]"
+          />
+        </div>
 
-        {folders.map(f => {
-          const count = exams.filter(e => (e.folderName || '').toLowerCase().includes(f.name.toLowerCase())).length;
-          return (
+        <div className="flex items-center space-x-2">
+          {(['All', 'Live', 'Draft'] as const).map(tab => (
             <button
-              key={f.id}
+              key={tab}
               type="button"
-              onClick={() => setActiveFolderTab(f.name)}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded text-xs font-medium cursor-pointer whitespace-nowrap transition ${
-                activeFolderTab === f.name
-                  ? 'bg-amber-50/80 border border-amber-300 text-gray-900 font-bold'
+              onClick={() => setStatusFilter(tab)}
+              className={`px-3 py-1 rounded text-xs font-semibold cursor-pointer transition ${
+                statusFilter === tab
+                  ? 'bg-[#002FA7] text-white shadow-2xs'
                   : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
-              <Folder className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
-              <span>{f.name}</span>
-              <span className="text-[11px] text-gray-500 font-mono">{count} exams</span>
+              {tab}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
       {/* 3-Column Exam Cards Grid - Dynamic and Deletable */}
@@ -213,7 +202,7 @@ export const ExamManagementView: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[11px] text-gray-500 font-mono mt-0.5">
-                      Exam folder: {card.folderName || 'JEE MAINS'} ({questionsCount} questions)
+                      {questionsCount} Questions &bull; {card.durationMinutes || 60} mins &bull; {card.examCategory || 'IIT-JEE'}
                     </p>
                   </div>
 

@@ -113,7 +113,8 @@ export function generateExamShareUrl(exam: Exam, customQuestions?: Question[], p
   }
 
   const encodedData = toBase64Url(JSON.stringify(payload));
-  return `${origin}/exam/${examSlug}?d=${encodedData}`;
+  // Use root query param URL (/?exam=CODE&d=DATA) to prevent 404 on Vercel and any static hosting
+  return `${origin}/?exam=${examSlug}&d=${encodedData}`;
 }
 
 /**
@@ -124,7 +125,18 @@ export function decodeExamFromUrl(): { exam: Exam; customQuestions: Question[] }
 
   try {
     const searchParams = new URLSearchParams(window.location.search);
-    const dataParam = searchParams.get('d') || searchParams.get('examData');
+    let dataParam = searchParams.get('d') || searchParams.get('examData');
+
+    // Also support hash parameters (e.g. /#/?d=... or /#/exam/...&d=...)
+    if (!dataParam && window.location.hash) {
+      try {
+        const hashQuery = window.location.hash.split('?')[1];
+        if (hashQuery) {
+          const hashParams = new URLSearchParams(hashQuery);
+          dataParam = hashParams.get('d') || hashParams.get('examData');
+        }
+      } catch {}
+    }
 
     if (!dataParam) return null;
 

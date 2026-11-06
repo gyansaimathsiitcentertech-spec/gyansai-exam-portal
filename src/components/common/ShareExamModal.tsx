@@ -42,7 +42,7 @@ export const ShareExamModal: React.FC = () => {
     if (!currentExam) return '';
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://gyansai-exam-portal.vercel.app';
     const slug = encodeURIComponent(currentExam.code || currentExam.id);
-    return `${origin}/exam/${slug}`;
+    return `${origin}/?exam=${slug}`;
   }, [currentExam]);
 
   const activeUrl = linkTab === 'smart' ? smartShareUrl : shortSlugUrl;

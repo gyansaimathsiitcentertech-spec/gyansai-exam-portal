@@ -329,6 +329,18 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const urlParams = new URLSearchParams(search);
           examParam = urlParams.get('exam') || urlParams.get('test') || urlParams.get('share');
         }
+        if (!examParam && window.location.hash) {
+          try {
+            const hash = window.location.hash;
+            if (hash.toLowerCase().includes('/exam/')) {
+              const parts = hash.split(/\/exam\//i);
+              if (parts[1]) examParam = decodeURIComponent(parts[1].split('/')[0].split('?')[0]);
+            } else if (hash.includes('?')) {
+              const hashParams = new URLSearchParams(hash.split('?')[1]);
+              examParam = hashParams.get('exam') || hashParams.get('test') || hashParams.get('share');
+            }
+          } catch {}
+        }
 
         if (examParam) {
           const found = exams.find(
