@@ -44,7 +44,10 @@ export const OnlineExamInterface: React.FC = () => {
     setSelectedAttemptForResult
   } = usePortal();
 
-  const exam = exams.find(e => e.id === activeExamIdForCBT) || exams[0];
+  const exam = exams.find(
+    e => e.id === activeExamIdForCBT ||
+         (activeExamIdForCBT && e.code.toLowerCase() === activeExamIdForCBT.toLowerCase())
+  ) || exams[0];
 
   // Flatten questions according to sections
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
@@ -57,7 +60,11 @@ export const OnlineExamInterface: React.FC = () => {
   const matched = allExamQuestionIds
     .map(id => questions.find(q => q.id === id))
     .filter(Boolean) as Question[];
-  const allExamQuestions: Question[] = matched.length > 0 ? matched : questions;
+  const allExamQuestions: Question[] = matched.length > 0
+    ? matched
+    : (exam?.questions && exam.questions.length > 0)
+      ? exam.questions
+      : questions;
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const currentQuestion: Question | undefined = allExamQuestions[currentQuestionIndex];

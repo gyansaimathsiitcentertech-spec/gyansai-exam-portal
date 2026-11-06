@@ -31,6 +31,7 @@ import {
   INITIAL_TEST_SERIES,
   INITIAL_PAYMENTS
 } from '../data/initialData';
+import { decodeExamFromUrl } from '../utils/examShare';
 
 export type PortalMode = 'landing' | 'login' | 'admin' | 'student' | 'public_exam' | 'taking_exam';
 
@@ -278,6 +279,34 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     const resolveUrlRoute = () => {
       try {
+        // 1. Check if the URL has a self-hydrating exam payload
+        const decoded = decodeExamFromUrl();
+        if (decoded && decoded.exam) {
+          if (decoded.customQuestions && decoded.customQuestions.length > 0) {
+            setQuestions(prev => {
+              const existingIds = new Set(prev.map(q => q.id));
+              const missing = decoded.customQuestions.filter(q => !existingIds.has(q.id));
+              return missing.length > 0 ? [...missing, ...prev] : prev;
+            });
+          }
+
+          setExams(prev => {
+            const index = prev.findIndex(
+              e => e.id === decoded.exam.id || e.code.toLowerCase() === decoded.exam.code.toLowerCase()
+            );
+            if (index >= 0) {
+              const updated = [...prev];
+              updated[index] = { ...updated[index], ...decoded.exam };
+              return updated;
+            }
+            return [decoded.exam, ...prev];
+          });
+
+          setActiveExamIdForShare(decoded.exam.id);
+          setPortalModeState('public_exam');
+          return;
+        }
+
         const path = window.location.pathname;
         const search = window.location.search;
         let examParam: string | null = null;
@@ -301,7 +330,48 @@ export const PortalProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           if (found) {
             setActiveExamIdForShare(found.id);
           } else {
-            setActiveExamIdForShare(examParam);
+            // Reconstruct exam shell for this code so it never shows incorrect fallback test
+            const cleanCode = examParam.trim();
+            const dynamicTitle = cleanCode.startsWith('GYAN-')
+              ? `Gyansai Assessment (${cleanCode})`
+              : `${cleanCode.replace(/[-_]/g, ' ')}`;
+            const dynamicExam: Exam = {
+              id: cleanCode,
+              title: dynamicTitle,
+              code: cleanCode,
+              folderId: 'folder-1',
+              folderName: 'Assessment Series',
+              batchIds: [],
+              durationMinutes: 180,
+              totalMarks: 100,
+              positiveMarks: 4,
+              negativeMarks: -1,
+              passPercentage: 40,
+              targetClass: '11th & 12th',
+              examCategory: 'IIT-JEE / CET',
+              sections: [
+                {
+                  id: 'sec-1',
+                  name: 'Mathematics Section',
+                  subject: 'Mathematics',
+                  questionIds: questions.slice(0, 10).map(q => q.id),
+                  instructions: '+4 for correct answer, -1 for wrong response.'
+                }
+              ],
+              startTime: new Date().toISOString().slice(0, 16),
+              endTime: new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString().slice(0, 16),
+              status: 'Live',
+              isPublic: true,
+              publicAccessUrl: window.location.href,
+              instructions: [
+                'Each question has four options with only ONE correct answer.',
+                'Marking: +4 marks for correct response, -1 mark for wrong response.',
+                'Submit the examination before the countdown timer expires.'
+              ],
+              createdAt: new Date().toISOString()
+            };
+            setExams(prev => [dynamicExam, ...prev]);
+            setActiveExamIdForShare(dynamicExam.id);
           }
           setPortalModeState('public_exam');
         } else if (path.toLowerCase().startsWith('/exam')) {

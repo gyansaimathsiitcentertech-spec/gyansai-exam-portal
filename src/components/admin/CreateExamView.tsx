@@ -10,7 +10,9 @@ import {
   ArrowRight,
   ArrowLeft,
   Trash2,
-  Calendar
+  Calendar,
+  RefreshCw,
+  Link as LinkIcon
 } from 'lucide-react';
 import { ExamSection } from '../../types';
 
@@ -21,6 +23,7 @@ export const CreateExamView: React.FC = () => {
     questions,
     addExam,
     setActiveAdminTab,
+    setActiveExamIdForShare,
     showToast
   } = usePortal();
 
@@ -82,7 +85,7 @@ export const CreateExamView: React.FC = () => {
       ? `${window.location.origin}/exam/${code.trim()}`
       : `https://gyansai-exam-portal.vercel.app/exam/${code.trim()}`;
 
-    addExam({
+    const createdExam = addExam({
       title: title.trim(),
       code: code.trim(),
       folderId: selectedFolder?.id || 'folder-1',
@@ -95,7 +98,7 @@ export const CreateExamView: React.FC = () => {
       sections,
       startTime: new Date().toISOString().slice(0, 16),
       endTime: new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString().slice(0, 16),
-      status: 'Active',
+      status: 'Live',
       isPublic,
       publicAccessUrl: shareUrl,
       instructions: [
@@ -107,6 +110,8 @@ export const CreateExamView: React.FC = () => {
       passPercentage: Number(passPercentage)
     });
 
+    // Immediately present the unique exam link and share controls
+    setActiveExamIdForShare(createdExam.id);
     setActiveAdminTab('Exam Management');
   };
 
@@ -155,16 +160,30 @@ export const CreateExamView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-                Unique Exam Code
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-slate-600 uppercase">
+                  Unique Exam Code
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setCode(`GYAN-IIT-${Math.floor(1000 + Math.random() * 9000)}`)}
+                  className="text-[10px] text-blue-700 hover:text-blue-900 font-semibold flex items-center space-x-1 cursor-pointer"
+                >
+                  <RefreshCw className="w-2.5 h-2.5" />
+                  <span>Randomize</span>
+                </button>
+              </div>
               <input
                 type="text"
                 required
                 value={code}
-                onChange={e => setCode(e.target.value)}
+                onChange={e => setCode(e.target.value.toUpperCase().replace(/\s+/g, '-'))}
                 className="w-full px-3 py-2 border border-slate-300 rounded text-slate-900 font-mono font-bold focus:outline-none"
               />
+              <div className="mt-1 flex items-center space-x-1 text-[10px] text-slate-500 font-mono truncate">
+                <LinkIcon className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+                <span className="truncate">/exam/{code.trim() || 'CODE'}</span>
+              </div>
             </div>
           </div>
 

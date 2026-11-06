@@ -204,9 +204,14 @@ export const ExamManagementView: React.FC = () => {
 
                   {/* Title & Folder name */}
                   <div>
-                    <h3 className="text-base font-bold text-gray-950">
-                      {card.title}
-                    </h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-base font-bold text-gray-950">
+                        {card.title}
+                      </h3>
+                      <span className="font-mono text-[10px] font-bold text-[#002FA7] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded shrink-0">
+                        {card.code}
+                      </span>
+                    </div>
                     <p className="text-[11px] text-gray-500 font-mono mt-0.5">
                       Exam folder: {card.folderName || 'JEE MAINS'} ({questionsCount} questions)
                     </p>
